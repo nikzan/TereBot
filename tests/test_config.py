@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from terebot.config import DEFAULT_SETTINGS_PATH, SettingsError, load_settings
+from terebot.config import CONFIG_DIR, SettingsError, load_settings, resolve_settings_path
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -24,8 +24,39 @@ def test_valid_file():
 
 
 def test_repo_settings_load():
-    settings = load_settings(DEFAULT_SETTINGS_PATH)
+    settings = load_settings(CONFIG_DIR / "settings.toml")
     assert settings.discord.whitelist
+
+
+def test_default_loads_resolved_file():
+    assert load_settings() == load_settings(resolve_settings_path())
+
+
+VALID = '[discord]\nguild_id = "123456789012345678"\nwhitelist = ["111111111111111111"]\n'
+
+
+def test_resolve_without_local_uses_shared(tmp_path):
+    (tmp_path / "settings.toml").write_text(VALID, encoding="utf-8")
+    assert resolve_settings_path(tmp_path) == tmp_path / "settings.toml"
+
+
+def test_resolve_prefers_local(tmp_path):
+    (tmp_path / "settings.toml").write_text(VALID, encoding="utf-8")
+    (tmp_path / "settings.local.toml").write_text(
+        VALID.replace("111111111111111111", "444444444444444444"), encoding="utf-8"
+    )
+    path = resolve_settings_path(tmp_path)
+    assert path == tmp_path / "settings.local.toml"
+    assert load_settings(path).discord.whitelist == ("444444444444444444",)
+
+
+def test_local_replaces_shared_without_merging(tmp_path):
+    (tmp_path / "settings.toml").write_text(VALID, encoding="utf-8")
+    (tmp_path / "settings.local.toml").write_text(
+        '[discord]\nwhitelist = ["111111111111111111"]\n', encoding="utf-8"
+    )
+    with pytest.raises(SettingsError, match="settings.local.toml: поле discord.guild_id"):
+        load_settings(resolve_settings_path(tmp_path))
 
 
 def test_empty_whitelist(tmp_path):

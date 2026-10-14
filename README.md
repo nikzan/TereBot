@@ -10,7 +10,11 @@
 cp .env.example .env          # впишите DISCORD_TOKEN
 ```
 
-В `config/settings.toml` замените `guild_id` и `whitelist` на свои ID.
+Реальные ID пишите в локальную копию настроек (она в `.gitignore` и заменяет `config/settings.toml`):
+
+```bash
+cp config/settings.toml config/settings.local.toml   # впишите guild_id и whitelist
+```
 
 Шлюз:
 

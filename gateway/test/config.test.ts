@@ -6,29 +6,33 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 
-import { DEFAULT_SETTINGS_PATH, SettingsError, loadSettings } from "../src/config.ts";
+import { CONFIG_DIR, SettingsError, loadSettings, resolveSettingsPath } from "../src/config.ts";
 
 const REPO_ROOT = fileURLToPath(new URL("../../", import.meta.url));
 const FIXTURE = join(REPO_ROOT, "tests", "fixtures", "settings_valid.toml");
 
 // Загружает тот же файл Python-ядром (terebot.config), чтобы сравнить результаты.
-function loadWithPython(path: string): { guild_id: string; whitelist: string[] } {
+// Без path ядро само выбирает файл, как при обычном старте.
+function loadWithPython(path?: string): { guild_id: string; whitelist: string[] } {
   const code =
-    "import json, sys; from terebot.config import load_settings; " +
-    "d = load_settings(sys.argv[1]).discord; " +
+    "import json, sys; from pathlib import Path; from terebot.config import load_settings; " +
+    "d = load_settings(Path(sys.argv[1]) if len(sys.argv) > 1 else None).discord; " +
     "print(json.dumps({'guild_id': d.guild_id, 'whitelist': list(d.whitelist)}))";
-  const out = execFileSync("uv", ["run", "--quiet", "python", "-c", code, path], {
+  const args = ["run", "--quiet", "python", "-c", code, ...(path ? [path] : [])];
+  const out = execFileSync("uv", args, {
     cwd: REPO_ROOT,
     encoding: "utf8",
   });
   return JSON.parse(out);
 }
 
-function writeTemp(text: string): string {
-  const path = join(mkdtempSync(join(tmpdir(), "terebot-")), "settings.toml");
+function writeTemp(text: string, name = "settings.toml", dir = mkdtempSync(join(tmpdir(), "terebot-"))): string {
+  const path = join(dir, name);
   writeFileSync(path, text);
   return path;
 }
+
+const VALID = '[discord]\nguild_id = "123456789012345678"\nwhitelist = ["111111111111111111"]\n';
 
 test("общий образец: whitelist из трёх ID", () => {
   const settings = loadSettings(FIXTURE);
@@ -42,10 +46,11 @@ test("общий образец: whitelist из трёх ID", () => {
 
 for (const [name, path] of [
   ["общий образец", FIXTURE],
-  ["config/settings.toml", DEFAULT_SETTINGS_PATH],
+  ["config/settings.toml", join(CONFIG_DIR, "settings.toml")],
+  ["файл по умолчанию", undefined],
 ] as const) {
   test(`${name}: шлюз и ядро видят одинаковые настройки`, () => {
-    const node = loadSettings(path);
+    const node = path ? loadSettings(path) : loadSettings();
     const py = loadWithPython(path);
     assert.equal(node.discord.guildId, py.guild_id);
     assert.deepEqual(node.discord.whitelist, py.whitelist);
@@ -75,4 +80,18 @@ test("неверный тип: guild_id числом", () => {
 test("неверный тип: ID в whitelist числом", () => {
   const path = writeTemp('[discord]\nguild_id = "123456789012345678"\nwhitelist = [1]\n');
   assert.throws(() => loadSettings(path), /discord\.whitelist\[0\]/);
+});
+
+test("без settings.local.toml читается settings.toml", () => {
+  const shared = writeTemp(VALID);
+  const dir = join(shared, "..");
+  assert.equal(resolveSettingsPath(dir), shared);
+});
+
+test("settings.local.toml заменяет settings.toml целиком", () => {
+  const shared = writeTemp(VALID);
+  const dir = join(shared, "..");
+  const local = writeTemp('[discord]\nwhitelist = ["111111111111111111"]\n', "settings.local.toml", dir);
+  assert.equal(resolveSettingsPath(dir), local);
+  assert.throws(() => loadSettings(resolveSettingsPath(dir)), /settings\.local\.toml: поле discord\.guild_id/);
 });

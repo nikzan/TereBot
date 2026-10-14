@@ -1,13 +1,19 @@
-// Загрузка и проверка несекретных настроек из config/settings.toml.
-// Тот же файл и ту же схему проверяет ядро (src/terebot/config.py).
+// Загрузка и проверка несекретных настроек.
+// Читается config/settings.local.toml, если он есть (в .gitignore, там реальные ID),
+// иначе config/settings.toml из git. Файлы не сливаются: локальный заменяет общий целиком.
+// Тот же выбор файла и ту же схему проверяет ядро (src/terebot/config.py).
 
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse } from "smol-toml";
 
-export const DEFAULT_SETTINGS_PATH = fileURLToPath(
-  new URL("../../config/settings.toml", import.meta.url),
-);
+export const CONFIG_DIR = fileURLToPath(new URL("../../config/", import.meta.url));
+
+export function resolveSettingsPath(configDir: string = CONFIG_DIR): string {
+  const local = join(configDir, "settings.local.toml");
+  return existsSync(local) ? local : join(configDir, "settings.toml");
+}
 
 // Discord snowflake: целое число до 2^64, в настройках хранится строкой.
 const SNOWFLAKE = /^\d{17,20}$/;
@@ -29,7 +35,7 @@ function isTable(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-export function loadSettings(path: string = DEFAULT_SETTINGS_PATH): Settings {
+export function loadSettings(path: string = resolveSettingsPath()): Settings {
   let raw: Record<string, unknown>;
   try {
     raw = parse(readFileSync(path, "utf8"));

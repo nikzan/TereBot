@@ -29,14 +29,22 @@
 - **THEN** в сообщении об ошибке нет значения токена
 
 ### Requirement: Общий файл настроек
-Несекретные настройки — ID сервера и список Discord user ID из whitelist — Клон SHALL читать из одного файла `config/settings.toml`. Этот файл MUST быть общим для Node-шлюза и Python-ядра.
+Несекретные настройки — ID сервера и список Discord user ID из whitelist — Клон SHALL читать из одного файла: `config/settings.local.toml`, если он существует, иначе `config/settings.toml`. Выбор файла MUST быть одинаковым для Node-шлюза и Python-ядра. `config/settings.toml` лежит в git с плейсхолдерами, а `config/settings.local.toml` с реальными ID MUST быть исключён из git. Файлы не сливаются: локальный заменяет общий целиком.
 
 #### Scenario: Шлюз и ядро видят одинаковые настройки
-- **WHEN** в `config/settings.toml` указан whitelist из трёх user ID
+- **WHEN** в файле настроек указан whitelist из трёх user ID
 - **THEN** и шлюз, и ядро после загрузки настроек получают одни и те же три ID
 
+#### Scenario: Локальный файл заменяет общий
+- **WHEN** рядом с `config/settings.toml` лежит `config/settings.local.toml`
+- **THEN** шлюз и ядро читают только `config/settings.local.toml`, а поля, которых в нём нет, из `config/settings.toml` не берутся
+
+#### Scenario: Реальные ID не попадают в git
+- **WHEN** владелец вписал реальные ID в `config/settings.local.toml` и выполняет `git status`
+- **THEN** `config/settings.local.toml` не отображается среди неотслеживаемых файлов
+
 ### Requirement: Проверка настроек при старте
-Клон SHALL проверять настройки при старте. Если обязательного поля нет или у него неверный тип, Клон MUST завершиться с сообщением, где указаны имя поля и файл.
+Клон SHALL проверять настройки при старте. Если обязательного поля нет или у него неверный тип, Клон MUST завершиться с сообщением, где указаны имя поля и прочитанный файл.
 
 #### Scenario: Пустой whitelist
 - **WHEN** в `config/settings.toml` нет ни одного user ID в whitelist

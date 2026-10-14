@@ -1,6 +1,8 @@
-"""Загрузка и проверка несекретных настроек из config/settings.toml.
+"""Загрузка и проверка несекретных настроек.
 
-Тот же файл и ту же схему проверяет шлюз (gateway/src/config.ts).
+Читается config/settings.local.toml, если он есть (в .gitignore, там реальные ID),
+иначе config/settings.toml из git. Файлы не сливаются: локальный заменяет общий целиком.
+Тот же выбор файла и ту же схему проверяет шлюз (gateway/src/config.ts).
 """
 
 import re
@@ -8,7 +10,7 @@ import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 
-DEFAULT_SETTINGS_PATH = Path(__file__).resolve().parents[2] / "config" / "settings.toml"
+CONFIG_DIR = Path(__file__).resolve().parents[2] / "config"
 
 # Discord snowflake: целое число до 2^64, в настройках хранится строкой.
 _SNOWFLAKE = re.compile(r"^\d{17,20}$")
@@ -29,7 +31,14 @@ class Settings:
     discord: DiscordSettings
 
 
-def load_settings(path: Path = DEFAULT_SETTINGS_PATH) -> Settings:
+def resolve_settings_path(config_dir: Path = CONFIG_DIR) -> Path:
+    local = config_dir / "settings.local.toml"
+    return local if local.exists() else config_dir / "settings.toml"
+
+
+def load_settings(path: Path | None = None) -> Settings:
+    if path is None:
+        path = resolve_settings_path()
     try:
         with open(path, "rb") as f:
             raw = tomllib.load(f)

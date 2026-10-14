@@ -2,7 +2,7 @@
 
 import { Client, Events, GatewayIntentBits } from "discord.js";
 
-import { type Settings, SettingsError, loadSettings } from "./config.ts";
+import { type Settings, SettingsError, loadSettings, resolveSettingsPath } from "./config.ts";
 
 const SETUP_DOC = "docs/discord-setup.md";
 
@@ -22,9 +22,11 @@ if (!token) {
 // Токен не должен попасть в лог даже внутри сообщения об ошибке.
 const redact = (text: string) => text.replaceAll(token, "<DISCORD_TOKEN>");
 
+const settingsPath = resolveSettingsPath();
+
 function loadSettingsOrDie(): Settings {
   try {
-    return loadSettings();
+    return loadSettings(settingsPath);
   } catch (e) {
     if (e instanceof SettingsError) die(`Ошибка настроек: ${e.message}`);
     throw e;
@@ -32,6 +34,7 @@ function loadSettingsOrDie(): Settings {
 }
 
 const settings = loadSettingsOrDie();
+console.log(`Настройки: ${settingsPath}`);
 
 const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates],
@@ -44,7 +47,7 @@ client.once(Events.ClientReady, (ready) => {
     console.log(`Сервер: ${guild.name} (${guild.id})`);
   } else {
     console.warn(
-      `Бот не приглашён на сервер ${settings.discord.guildId} из config/settings.toml. ` +
+      `Бот не приглашён на сервер ${settings.discord.guildId} из ${settingsPath}. ` +
         `Проверьте guild_id и пригласите бота по инструкции ${SETUP_DOC}, раздел 2.`,
     );
   }
