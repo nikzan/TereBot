@@ -9,13 +9,19 @@
   },
   "scripts": {
     "start": "node --env-file-if-exists=../.env src/main.ts",
-    "test": "node --test"
+    "test": "node --test",
+    "postinstall": "patch-package"
   },
   "dependencies": {
+    "@discordjs/opus": "0.10.0",
+    "@discordjs/voice": "0.19.2",
+    "@snazzah/davey": "0.1.12",
     "discord.js": "^14.27.0",
+    "prism-media": "1.3.5",
     "smol-toml": "^1.9.1"
   },
   "devDependencies": {
-    "@types/node": "^22.20.5"
+    "@types/node": "^22.20.5",
+    "patch-package": "8.0.1"
   }
 }

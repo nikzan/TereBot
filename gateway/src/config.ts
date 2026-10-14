@@ -4,7 +4,7 @@
 // Тот же выбор файла и ту же схему проверяет ядро (src/terebot/config.py).
 
 import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse } from "smol-toml";
 
@@ -27,9 +27,39 @@ export interface DiscordSettings {
   whitelist: readonly string[];
 }
 
+export interface GatewaySettings {
+  echo: boolean;
+  echoDelayMs: number;
+  autoleaveS: number;
+  watchdogSilenceMs: number;
+  watchdogMaxResubscribes: number;
+}
+
+export interface RecordingSettings {
+  enabled: boolean;
+  // Абсолютный путь; в файле настроек — относительно корня репозитория.
+  dir: string;
+}
+
 export interface Settings {
   discord: DiscordSettings;
+  gateway: GatewaySettings;
+  recording: RecordingSettings;
 }
+
+// Секции [gateway] и [recording] необязательны: недостающие поля берутся отсюда.
+// Так settings.local.toml, где есть только [discord], остаётся рабочим.
+export const GATEWAY_DEFAULTS: GatewaySettings = {
+  echo: true,
+  echoDelayMs: 2000,
+  autoleaveS: 30,
+  watchdogSilenceMs: 3000,
+  watchdogMaxResubscribes: 3,
+};
+
+export const RECORDING_DEFAULTS = { enabled: true, dir: "data/recordings" } as const;
+
+export const REPO_ROOT = fileURLToPath(new URL("../../", import.meta.url));
 
 function isTable(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -72,5 +102,53 @@ export function loadSettings(path: string = resolveSettingsPath()): Settings {
     }
   });
 
-  return { discord: { guildId, whitelist: whitelist as string[] } };
+  const optionalTable = (name: string): Record<string, unknown> => {
+    const table = raw[name];
+    if (table === undefined) return {};
+    if (!isTable(table)) throw fail(`[${name}]`, "должно быть таблицей");
+    return table;
+  };
+
+  const bool = (table: Record<string, unknown>, field: string, fallback: boolean): boolean => {
+    const value = table[field.split(".")[1]!];
+    if (value === undefined) return fallback;
+    if (typeof value !== "boolean") throw fail(field, "должно быть true или false");
+    return value;
+  };
+
+  const int = (table: Record<string, unknown>, field: string, fallback: number, min: number): number => {
+    const value = table[field.split(".")[1]!];
+    if (value === undefined) return fallback;
+    // smol-toml возвращает целые TOML как number (или bigint для очень больших).
+    if (typeof value !== "number" || !Number.isInteger(value) || value < min) {
+      throw fail(field, `должно быть целым числом не меньше ${min}`);
+    }
+    return value;
+  };
+
+  const gw = optionalTable("gateway");
+  const gateway: GatewaySettings = {
+    echo: bool(gw, "gateway.echo", GATEWAY_DEFAULTS.echo),
+    echoDelayMs: int(gw, "gateway.echo_delay_ms", GATEWAY_DEFAULTS.echoDelayMs, 0),
+    autoleaveS: int(gw, "gateway.autoleave_s", GATEWAY_DEFAULTS.autoleaveS, 1),
+    watchdogSilenceMs: int(gw, "gateway.watchdog_silence_ms", GATEWAY_DEFAULTS.watchdogSilenceMs, 100),
+    watchdogMaxResubscribes: int(
+      gw,
+      "gateway.watchdog_max_resubscribes",
+      GATEWAY_DEFAULTS.watchdogMaxResubscribes,
+      1,
+    ),
+  };
+
+  const rec = optionalTable("recording");
+  const dir = rec.dir ?? RECORDING_DEFAULTS.dir;
+  if (typeof dir !== "string" || dir === "") {
+    throw fail("recording.dir", "должно быть непустой строкой с путём");
+  }
+  const recording: RecordingSettings = {
+    enabled: bool(rec, "recording.enabled", RECORDING_DEFAULTS.enabled),
+    dir: resolve(REPO_ROOT, dir),
+  };
+
+  return { discord: { guildId, whitelist: whitelist as string[] }, gateway, recording };
 }

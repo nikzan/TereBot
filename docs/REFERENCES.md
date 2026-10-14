@@ -8,11 +8,12 @@
 |---|---|---|
 | `@discordjs/voice` | https://www.npmjs.com/package/@discordjs/voice · https://github.com/discordjs/discord.js/tree/main/packages/voice | latest `0.19.2` (опубликован 2026-03-17); `1.0.0-dev.*` — только dev-тег |
 | Фикс приёма под DAVE | https://github.com/discordjs/discord.js/pull/11449 (закрывает #11419) | Влит 2026-03-13, т.е. до релиза 0.19.2; фактическую работу подтверждает только Эхо-тест |
-| Баг #11653 | https://github.com/discordjs/discord.js/issues/11653 | **Открыт, PR нет.** Срабатывает, когда бот заходит в канал, где уже есть люди (наш основной сценарий). Обход — патч `lastTransitionId !== undefined` (change `add-echo-test-gateway`) |
-| Баг #11441 | https://github.com/discordjs/discord.js/issues/11441 | Закрыт как not planned: до 34% потерь пакетов при смене ключей DAVE — принимаем и измеряем |
+| Баг #11653 | https://github.com/discordjs/discord.js/issues/11653 | **Открыт, PR нет** (перепроверено 2026-10-15). Срабатывает, когда бот заходит в канал, где уже есть люди (наш основной сценарий). Обход — патч [`gateway/patches/@discordjs+voice+0.19.2.patch`](../gateway/patches/@discordjs+voice+0.19.2.patch): `lastTransitionId !== undefined` в `DAVESession.decrypt`, применяется `patch-package` на `postinstall`. При обновлении `@discordjs/voice` пересмотреть; если upstream починит — удалить |
+| Баг #11441 | https://github.com/discordjs/discord.js/issues/11441 | Закрыт как not planned 2026-03-05 (перепроверено 2026-10-15): до 34% потерь пакетов при смене ключей DAVE — патча нет, принимаем и измеряем в Эхо-тесте |
 | `@snazzah/davey` (DAVE) | https://www.npmjs.com/package/@snazzah/davey | latest `0.1.12` |
 | `discord.js` | https://discord.js.org | latest `14.27.0` |
-| `@discordjs/opus`, `prism-media` | npm | `0.10.0`, `1.3.5` |
+| `@discordjs/opus`, `prism-media` | npm | `0.10.0`, `1.3.5`; `@discordjs/opus` на arm64 собирается, `generateDependencyReport()` находит Opus и DAVE (2026-10-15) |
+| `patch-package` | https://www.npmjs.com/package/patch-package | `8.0.1` |
 | Протокол голоса Discord | https://docs.discord.com/developers/topics/voice-connections | — |
 | DAVE обязателен | https://discord.com/blog/bringing-dave-to-all-discord-platforms | — |
 

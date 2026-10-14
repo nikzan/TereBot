@@ -6,7 +6,13 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 
-import { CONFIG_DIR, SettingsError, loadSettings, resolveSettingsPath } from "../src/config.ts";
+import {
+  CONFIG_DIR,
+  GATEWAY_DEFAULTS,
+  SettingsError,
+  loadSettings,
+  resolveSettingsPath,
+} from "../src/config.ts";
 
 const REPO_ROOT = fileURLToPath(new URL("../../", import.meta.url));
 const FIXTURE = join(REPO_ROOT, "tests", "fixtures", "settings_valid.toml");
@@ -94,4 +100,40 @@ test("settings.local.toml заменяет settings.toml целиком", () => 
   const local = writeTemp('[discord]\nwhitelist = ["111111111111111111"]\n', "settings.local.toml", dir);
   assert.equal(resolveSettingsPath(dir), local);
   assert.throws(() => loadSettings(resolveSettingsPath(dir)), /settings\.local\.toml: поле discord\.guild_id/);
+});
+
+test("без [gateway] и [recording] берутся значения по умолчанию", () => {
+  const settings = loadSettings(writeTemp(VALID));
+  assert.deepEqual(settings.gateway, GATEWAY_DEFAULTS);
+  assert.equal(settings.recording.enabled, true);
+  assert.equal(settings.recording.dir, join(REPO_ROOT, "data", "recordings"));
+});
+
+test("config/settings.toml: поля шлюза совпадают со значениями по умолчанию", () => {
+  const settings = loadSettings(join(CONFIG_DIR, "settings.toml"));
+  assert.deepEqual(settings.gateway, GATEWAY_DEFAULTS);
+});
+
+test("поля [gateway] и [recording] читаются", () => {
+  const path = writeTemp(
+    VALID +
+      "[gateway]\necho = false\necho_delay_ms = 500\nautoleave_s = 5\n" +
+      '[recording]\nenabled = false\ndir = "/tmp/rec"\n',
+  );
+  const settings = loadSettings(path);
+  assert.equal(settings.gateway.echo, false);
+  assert.equal(settings.gateway.echoDelayMs, 500);
+  assert.equal(settings.gateway.autoleaveS, 5);
+  assert.equal(settings.gateway.watchdogSilenceMs, GATEWAY_DEFAULTS.watchdogSilenceMs);
+  assert.deepEqual(settings.recording, { enabled: false, dir: "/tmp/rec" });
+});
+
+test("неверный тип в [gateway]", () => {
+  const path = writeTemp(VALID + '[gateway]\necho_delay_ms = "2000"\n');
+  assert.throws(() => loadSettings(path), /gateway\.echo_delay_ms должно быть целым/);
+});
+
+test("неверный тип в [recording]", () => {
+  const path = writeTemp(VALID + '[recording]\nenabled = "yes"\n');
+  assert.throws(() => loadSettings(path), /recording\.enabled должно быть true или false/);
 });
