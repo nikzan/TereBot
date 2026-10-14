@@ -9,7 +9,7 @@
 ## 2. Импорт и подготовка
 
 - [ ] 2.1 Добавить группу uv `data` (`silero-vad`, `onnx-asr`, `soundfile`, `soxr`, `pyloudnorm`); проверка: `uv sync --group data` проходит
-- [ ] 2.2 Реализовать `scripts/dataset/import.py` для локальных записей и WAV из `data/recordings/` с `source.json`; проверка: pytest на импорт обоих типов, источник и параметры записаны
+- [ ] 2.2 Реализовать `scripts/dataset/import.py` для локальных записей и WAV из `data/recordings/` с `source.json`; проверка: запуск на одной локальной записи и на каталоге Сессии из `data/recordings/` — оба импортированы, в `source.json` записаны источник и параметры
 - [ ] 2.3 Реализовать `scripts/dataset/prepare.py` (моно, 48 кГц, −23 LUFS, `--denoise` опционально); проверка: pytest — стерео 44,1 кГц на входе даёт моно 48 кГц с громкостью −23 ± 0,5 LUFS
 
 ## 3. Нарезка и транскрипция

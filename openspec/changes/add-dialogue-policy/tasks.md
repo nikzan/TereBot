@@ -2,8 +2,8 @@
 
 ## 1. Основа
 
-- [ ] 1.1 Добавить `rapidfuzz` в зависимости и `pyyaml` в `dev`, секцию `[dialogue]` в `config/settings.toml` и её загрузку и проверку в `terebot.config`; проверка: pytest на загрузку значений по умолчанию и ошибку при `window_s ≤ 0`
-- [ ] 1.2 Описать типы событий, решений и снимка состояния в `terebot.dialogue.events`; проверка: `uv run ruff check` проходит, а типы импортируются в тесте
+- [ ] 1.1 Добавить `rapidfuzz` в зависимости и `pyyaml` в `dev`, секцию `[dialogue]` в `config/settings.toml` и её загрузку и проверку в `terebot.config`; проверка: `uv run python -c "from terebot.config import load_settings; print(load_settings())"` без секции `[dialogue]` печатает значения по умолчанию, а с `window_s = 0` падает с сообщением, где названы поле и файл
+- [ ] 1.2 Описать типы событий, решений и снимка состояния в `terebot.dialogue.events`; проверка: `uv run ruff check` проходит
 
 ## 2. Слово-вызов
 
