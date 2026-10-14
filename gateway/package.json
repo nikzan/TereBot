@@ -1,0 +1,21 @@
+{
+  "name": "terebot-gateway",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Discord-шлюз Клона",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "start": "node --env-file-if-exists=../.env src/main.ts",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "discord.js": "^14.27.0",
+    "smol-toml": "^1.9.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5"
+  }
+}

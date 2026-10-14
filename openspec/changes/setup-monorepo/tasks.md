@@ -8,20 +8,20 @@
 
 ## 2. Каркас монорепо
 
-- [ ] 2.1 Создать каталоги `gateway/`, `src/terebot/`, `tests/`, `config/`, `scripts/` и `.env.example` с ключом `DISCORD_TOKEN=` без значения; проверка: `git status` показывает новые файлы, а `data/` и `.env` в нём не появляются
-- [ ] 2.2 Настроить `pyproject.toml`: пакет `terebot` (src-layout), группа `dev` (`ruff`, `pytest`), пустая группа `train`, настройки ruff и pytest; проверка: `uv sync` проходит, `uv run ruff check` и `uv run pytest` завершаются успешно
-- [ ] 2.3 Создать `gateway/package.json` (ESM, Node ≥ 22.18) с зависимостями `discord.js` и `smol-toml` и скриптом `start` (`node --env-file=../.env src/main.ts`); проверка: `npm install` в `gateway/` проходит, `package-lock.json` закоммичен
+- [x] 2.1 Создать каталоги `gateway/`, `src/terebot/`, `tests/`, `config/`, `scripts/` и `.env.example` с ключом `DISCORD_TOKEN=` без значения; проверка: `git status` показывает новые файлы, а `data/` и `.env` в нём не появляются
+- [x] 2.2 Настроить `pyproject.toml`: пакет `terebot` (src-layout), группа `dev` (`ruff`, `pytest`), пустая группа `train`, настройки ruff и pytest; проверка: `uv sync` проходит, `uv run ruff check` и `uv run pytest` завершаются успешно
+- [x] 2.3 Создать `gateway/package.json` (ESM, Node ≥ 22.18) с зависимостями `discord.js` и `smol-toml` и скриптом `start` (`node --env-file-if-exists=../.env src/main.ts`: без `.env` Node иначе падает раньше, чем шлюз подскажет про `.env.example`); проверка: `npm install` в `gateway/` проходит, `package-lock.json` закоммичен
 
 ## 3. Настройки
 
-- [ ] 3.1 Создать `config/settings.toml` по схеме из design.md и добавить в `.gitignore` правило для `config/settings.local.toml` на случай локальных переопределений; проверка: файл читается `tomllib`
-- [ ] 3.2 Реализовать загрузку и проверку настроек в Python (`terebot.config`): обязательные поля, типы, непустой whitelist; проверка: pytest-тесты на корректный файл, пустой whitelist и отсутствующее поле
-- [ ] 3.3 Реализовать то же в шлюзе (`gateway/src/config.ts`); проверка: тест на `node:test` загружает тот же `config/settings.toml` и получает те же значения, что и Python-тест
+- [x] 3.1 Создать `config/settings.toml` по схеме из design.md и добавить в `.gitignore` правило для `config/settings.local.toml` на случай локальных переопределений; проверка: файл читается `tomllib`
+- [x] 3.2 Реализовать загрузку и проверку настроек в Python (`terebot.config`): обязательные поля, типы, непустой whitelist; проверка: pytest-тесты на корректный файл, пустой whitelist и отсутствующее поле
+- [x] 3.3 Реализовать то же в шлюзе (`gateway/src/config.ts`); проверка: тест на `node:test` загружает тот же `config/settings.toml` и получает те же значения, что и Python-тест
 
 ## 4. Шлюз онлайн
 
-- [ ] 4.1 Реализовать `gateway/src/main.ts`: проверить токен (без токена — выход с ненулевым кодом и подсказкой про `.env.example`), загрузить настройки, залогиниться с intents `Guilds` и `GuildVoiceStates`, записать в лог имя бота и сервера или предупреждение, если бота нет на сервере; проверка: `npm start` без токена падает с понятным сообщением, а с неверным токеном падает без вывода самого токена
-- [ ] 4.2 Добавить в `README.md` в корне раздел «Быстрый старт» с командами запуска шлюза и тестов Python; проверка: команды из README выполняются как написано
+- [x] 4.1 Реализовать `gateway/src/main.ts`: проверить токен (без токена — выход с ненулевым кодом и подсказкой про `.env.example`), загрузить настройки, залогиниться с intents `Guilds` и `GuildVoiceStates`, записать в лог имя бота и сервера или предупреждение, если бота нет на сервере; проверка: `npm start` без токена падает с понятным сообщением, а с неверным токеном падает без вывода самого токена
+- [x] 4.2 Добавить в `README.md` в корне раздел «Быстрый старт» с командами запуска шлюза и тестов Python; проверка: команды из README выполняются как написано
 
 ## 5. Проверка готовности этапа 1
 

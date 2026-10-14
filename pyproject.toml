@@ -1,7 +1,31 @@
 [project]
 name = "terebot"
 version = "0.1.0"
-description = "Add your description here"
+description = "Локальный голосовой Клон для приватного Discord-сервера"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.12,<3.13"
 dependencies = []
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "ruff>=0.17.0",
+]
+# Зависимости для обучения на кластере (scripts/), ставятся через `uv sync --group train`.
+train = []
+
+[build-system]
+requires = ["uv_build>=0.8.4,<0.9"]
+build-backend = "uv_build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["gateway", "openspec", "docs"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["-ra", "--strict-markers"]
