@@ -7,6 +7,10 @@ import {
   SlashCommandBuilder,
 } from "discord.js";
 
+import { logger } from "./log.ts";
+
+const log = logger("commands");
+
 export const COMMANDS = [
   new SlashCommandBuilder().setName("join").setDescription("Позвать Клона в твой голосовой канал"),
   new SlashCommandBuilder().setName("leave").setDescription("Отпустить Клона из голосового канала"),
@@ -72,7 +76,7 @@ export async function handleCommand(
 
   switch (decision.kind) {
     case "deny":
-      console.log(`[commands] /${interaction.commandName} от ${interaction.user.id}: не в whitelist, отказ`);
+      log(`/${interaction.commandName} от ${interaction.user.id}: не в whitelist, отказ`);
       return void (await reply(REPLIES.denied));
     case "not-in-voice":
       return void (await reply(REPLIES.notInVoice));
@@ -85,7 +89,7 @@ export async function handleCommand(
         const name = await actions.join(decision.channelId);
         await interaction.editReply(REPLIES.joined(name));
       } catch (e) {
-        console.error(`[commands] /join: ${e instanceof Error ? e.message : String(e)}`);
+        log(`/join: ${e instanceof Error ? e.message : String(e)}`);
         await interaction.editReply(REPLIES.joinFailed);
       }
     }

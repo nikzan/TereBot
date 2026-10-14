@@ -49,7 +49,7 @@ npm start       # токен из ../.env, настройки из ../config/
 
 ## Сбои приёма в @discordjs/voice 0.19.2
 
-> **Предварительно: по чтению кода `dist/index.mjs`.** Задача 3.2 требует проверить это опытным путём в канале и дописать примеры реальных строк лога. Пока раздел не подтверждён, задача 3.2 не закрыта.
+Разбор по коду `dist/index.mjs`, проверенный прогоном 2026-10-14 (вы и гость, ~14 минут, лог `data/precheck.log`). Примеры строк — из этого лога, user ID заменены.
 
 Что происходит с пакетом участника (`VoiceReceiver.onUdpMessage`):
 
@@ -63,6 +63,60 @@ npm start       # токен из ../.env, настройки из ../config/
 5. Потеря пакетов в сети ничего не выдаёт: поток просто молчит. Её видно только по номерам RTP (`seq_lost`). Потери при смене ключей (#11441) видны как всплеск `dave_dropped` рядом со строками `[dave] Preparing for transition` / `Transition executed`.
 6. Поток подписки закрывается сам через 1 с без пакетов (`EndBehaviorType.AfterSilence`). Это нормальный конец фрагмента, а не сбой.
 
+### Что показал прогон
+
+Ни разу не было `Invalidating transition`, `stream_err`, `decode_err` или переподписки watchdog. Все ошибки расшифровки DAVE — короткие серии, которые проходят сами.
+
+**Бот заходит к людям.** Welcome на transition 1, затем несколько ошибок подряд, и приём идёт:
+
+```
+21:20:42.791Z [dave] Session initialized for protocol version 1
+21:20:42.800Z [voice] состояние connecting → ready
+21:20:43.009Z [dave] MLS welcome processed (transition id: 1)
+21:20:43.135Z [dave] Transition executed (v1 -> v1, id: 1)
+21:20:43.183Z [dave] Failed to decrypt a packet (1 consecutive fails)
+…
+21:20:43.283Z [dave] Failed to decrypt a packet (6 consecutive fails)
+```
+
+**Участник выходит или заходит (ротация ключей).** Commit и переход, потом всплеск ошибок у того, кто говорит. Самая длинная серия — 14 подряд, это меньше порога 36. У участника за минуту `dave_dropped` вырос на 35 (~0,7 с звука):
+
+```
+21:25:50.179Z [dave] MLS commit processed (transition id: 3)
+21:25:50.336Z [dave] Transition executed (v1 -> v1, id: 3)
+21:25:50.434Z [dave] Failed to decrypt a packet (1 consecutive fails)
+…
+21:25:50.471Z [dave] Failed to decrypt a packet (14 consecutive fails)
+21:26:42.813Z [stats] user=<гость> rtp=1824 seq_lost=4 dave_dropped=44 decoded=1780 … lost=2.6%
+```
+
+**Канал опустел.** Новая эпоха, сессия пересоздаётся, переход 0:
+
+```
+21:27:37.155Z [dave] Preparing for epoch (1)
+21:27:37.160Z [dave] Session reinitialized for protocol version 1
+21:27:37.174Z [dave] Transition executed (v1 -> v1, id: 0)
+```
+
+**Welcome на transition 0 (условие #11653).** Бот остался в опустевшем канале, кто-то вернулся. Ошибок одна-две, приём вернулся: следующий фрагмент владельца начался через 2 с и записан целиком (24,8 с):
+
+```
+21:31:48.097Z [dave] MLS welcome processed (transition id: 0)
+21:31:50.137Z [dave] Failed to decrypt a packet (1 consecutive fails)
+```
+
+Порог 36 здесь не был достигнут, поэтому ветку, которую исправляет патч, прогон **не задел**. Патч остаётся страховкой на случай длинной серии ошибок.
+
+**Сеть пропала у машины со шлюзом (~10 с).** `@discordjs/voice` восстановил соединение сам, без переподключения от watchdog. Потерянное видно только по `seq_lost`, и это 169 пакетов (~3,4 с):
+
+```
+21:26:40.032Z [voice] состояние ready → connecting
+21:26:40.792Z [voice] состояние connecting → ready
+21:27:15.841Z [stats] user=<владелец> rtp=6037 seq_lost=180 dave_dropped=6 decoded=6031 … lost=3.0%
+```
+
+Пропажу сети **у участника**, а не у шлюза, прогон не проверял.
+
 ## Эхо-тест
 
 Критерий этапа 2 из `docs/PLAN.md`: в канале владелец, Прототип и 1–2 человека; 15 минут без пропадания приёма, со входами и выходами и ротацией ключей DAVE; потоки не путаются; WAV сохранены. Не прошёл — план (б) из ADR 0002.
@@ -74,9 +128,9 @@ npm start       # токен из ../.env, настройки из ../config/
 3. `cd gateway && npm ci && npm test` — все тесты зелёные. Проверьте, что патч на месте: `grep -c "lastTransitionId !== undefined" node_modules/@discordjs/voice/dist/index.mjs` выводит `1`.
 4. Запустите с записью лога в файл:
    ```bash
-   mkdir -p ../data && npm start 2>&1 | tee ../data/echo-test.log
+   mkdir -p ../data && npm start 2>&1 | tee -i ../data/echo-test.log
    ```
-   В логе должно появиться `команды /join и /leave зарегистрированы на сервере`.
+   В логе должно появиться `команды /join и /leave зарегистрированы на сервере`. Флаг `-i` нужен, чтобы `tee` не завершился от Ctrl+C раньше шлюза и в лог попали финальные строки `[stats]`.
 5. Всем участникам — наушники: иначе эхо Клона попадёт обратно в микрофон, и потоки будут казаться перепутанными.
 
 ### Сценарий (15 минут)
