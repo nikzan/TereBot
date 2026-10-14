@@ -8,7 +8,8 @@
 |---|---|---|
 | `@discordjs/voice` | https://www.npmjs.com/package/@discordjs/voice · https://github.com/discordjs/discord.js/tree/main/packages/voice | latest `0.19.2` (опубликован 2026-03-17); `1.0.0-dev.*` — только dev-тег |
 | Фикс приёма под DAVE | https://github.com/discordjs/discord.js/pull/11449 (закрывает #11419) | Влит 2026-03-13, т.е. до релиза 0.19.2; фактическую работу подтверждает только Эхо-тест |
-| Открытые баги приёма | https://github.com/discordjs/discord.js/issues/11653 · https://github.com/discordjs/discord.js/issues/11441 | Не проверялось — сверить перед Эхо-тестом |
+| Баг #11653 | https://github.com/discordjs/discord.js/issues/11653 | **Открыт, PR нет.** Срабатывает, когда бот заходит в канал, где уже есть люди (наш основной сценарий). Обход — патч `lastTransitionId !== undefined` (change `add-echo-test-gateway`) |
+| Баг #11441 | https://github.com/discordjs/discord.js/issues/11441 | Закрыт как not planned: до 34% потерь пакетов при смене ключей DAVE — принимаем и измеряем |
 | `@snazzah/davey` (DAVE) | https://www.npmjs.com/package/@snazzah/davey | latest `0.1.12` |
 | `discord.js` | https://discord.js.org | latest `14.27.0` |
 | `@discordjs/opus`, `prism-media` | npm | `0.10.0`, `1.3.5` |
@@ -39,6 +40,8 @@
 |---|---|---|
 | Qwen3-TTS (код, fine-tuning) | https://github.com/QwenLM/Qwen3-TTS · https://arxiv.org/abs/2601.15621 | Русский в списке 10 языков; есть стриминг, `create_voice_clone_prompt` / `generate_voice_clone`, каталог `finetuning`. **MPS/Apple Silicon в README не упоминается** — примеры на CUDA |
 | Qwen3-TTS веса | https://huggingface.co/Qwen/Qwen3-TTS-12Hz-1.7B-Base · https://huggingface.co/Qwen/Qwen3-TTS-12Hz-0.6B-Base | Apache 2.0; `qwen-tts 0.1.1` на PyPI |
+| Qwen3-TTS на MLX | https://github.com/Blaizzy/mlx-audio · https://huggingface.co/mlx-community/Qwen3-TTS-12Hz-1.7B-Base-bf16 | `mlx-audio 0.5.9`, Qwen3-TTS со стримингом; есть конвертации `mlx-community/Qwen3-TTS-12Hz-{1.7B,0.6B}-Base-{bf16,8bit,4bit}` |
+| Сторонние замеры скорости на Mac | https://tinycomputers.io/posts/the-real-cost-of-running-qwen-tts-locally-three-machines-compared.html · https://soniqo.audio/benchmarks | PyTorch MPS на M3 Max: RTF ≈ 2,5–3,5 (медленнее реального времени); MLX на M5 Pro: RTF ≈ 0,8. Вторичные источники, только как ориентир |
 | Пин transformers | https://github.com/QwenLM/Qwen3-TTS/issues/237 | Не проверялось (README версию не указывает) |
 | Chatterbox Multilingual | https://github.com/resemble-ai/chatterbox · https://huggingface.co/ResembleAI/chatterbox | MIT; `chatterbox-tts 0.1.7` |
 | VoxCPM2 | https://github.com/OpenBMB/VoxCPM · https://huggingface.co/openbmb/VoxCPM2 | Apache 2.0 |
