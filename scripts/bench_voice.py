@@ -426,8 +426,9 @@ class QwenMlxAdapter:
     packages = ("mlx-audio", "mlx", "mlx-metal", "transformers")
     language = "russian"
 
-    def __init__(self, streaming_interval: float):
+    def __init__(self, streaming_interval: float, cache_limit_gb: float | None):
         self._interval = streaming_interval
+        self._cache_limit_gb = cache_limit_gb
         self._mx = None
         self.sample_rate = 0
 
@@ -435,6 +436,8 @@ class QwenMlxAdapter:
         import mlx.core as mx
         from mlx_audio.tts.utils import load
 
+        if self._cache_limit_gb is not None:
+            mx.set_cache_limit(int(self._cache_limit_gb * GB))
         self._model = load(model)
         self._mx = mx
         self.sample_rate = self._model.sample_rate
@@ -445,8 +448,12 @@ class QwenMlxAdapter:
         self._ref_audio = load_audio(str(ref_wav), sample_rate=self.sample_rate)
         self._ref_text = ref_text
         # Коды референса mlx-audio кэширует по (ref_text, ref_audio): считаем их здесь, вне замера.
-        for _ in self._generate("Да.", stream=False):
+        # Прогрев — со стримингом, как синтез фраз: без него mlx-audio декодирует коды референса
+        # вместе с новыми одним проходом, и это +4 ГБ к пику.
+        for _ in self._generate("Да.", stream=True):
             pass
+        # Буферы кодирования референса остаются в кэше MLX (~1,4 ГБ), пока их не освободить.
+        self._mx.clear_cache()
 
     def _generate(self, text: str, stream: bool):
         return self._model.generate(
@@ -469,7 +476,8 @@ class QwenMlxAdapter:
     def backend_memory(self) -> tuple[int, str] | None:
         if self._mx is None:
             return None
-        return self._mx.get_active_memory(), "mlx.get_peak_memory"
+        # Кэш буферов MLX — тоже память процесса, а get_peak_memory считает только активную.
+        return self._mx.get_active_memory() + self._mx.get_cache_memory(), "mlx.active+cache"
 
     def backend_peak_memory(self) -> int | None:
         return self._mx.get_peak_memory() if self._mx else None
@@ -504,7 +512,7 @@ def make_adapter(name: str, args: argparse.Namespace) -> Adapter:
     if name == "qwen_torch":
         return QwenTorchAdapter()
     if name == "qwen_mlx":
-        return QwenMlxAdapter(streaming_interval=args.streaming_interval)
+        return QwenMlxAdapter(args.streaming_interval, args.cache_limit_gb)
     if name == "chatterbox":
         return ChatterboxAdapter()
     raise ValueError(f"неизвестный адаптер {name}")
@@ -558,7 +566,12 @@ def run(args: argparse.Namespace) -> Path:
             "seed": args.seed,
             "warmup_phrases": len(warmup),
             "streaming_interval_s": args.streaming_interval if adapter.streaming else None,
-            "reference": {"wav": display_path(ref_wav), "text": ref_text},
+            "cache_limit_gb": args.cache_limit_gb,
+            "reference": {
+                "wav": display_path(ref_wav),
+                "text": ref_text,
+                "duration_s": sf.info(ref_wav).duration,
+            },
         },
         "date": dt.datetime.now().astimezone().isoformat(timespec="seconds"),
         "environment": environment(adapter.packages),
@@ -594,6 +607,11 @@ def main() -> None:
         type=float,
         default=2.0,
         help="mlx-audio: секунд звука в чанке стриминга (по умолчанию как в библиотеке)",
+    )
+    parser.add_argument(
+        "--cache-limit-gb",
+        type=float,
+        help="mlx: лимит кэша буферов (mx.set_cache_limit), по умолчанию как в библиотеке",
     )
     args = parser.parse_args()
     try:
