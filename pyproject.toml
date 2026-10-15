@@ -39,6 +39,14 @@ eval = [
     "psutil>=7.2.2",
     "soundfile>=0.13.1",
 ]
+# Конвейер датасета Голоса (scripts/dataset/), запуск — `uv run --group data`.
+data = [
+    "onnx-asr[cpu,hub]==0.12.0",
+    "prompt-toolkit==3.0.53",
+    "pyloudnorm==0.2.0",
+    "silero-vad==6.2.3",
+    "soundfile>=0.13.1",
+]
 
 [build-system]
 requires = ["uv_build>=0.8.4,<0.9"]
