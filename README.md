@@ -32,6 +32,8 @@ uv run ruff check
 uv run pytest
 ```
 
+Тестам конвейера датасета Голоса нужна группа `data`: `uv run --group data pytest`. Сам конвейер — [scripts/dataset/README.md](scripts/dataset/README.md).
+
 Тесты шлюза (из `gateway/`; сверяют настройки с Python-ядром, поэтому нужен uv):
 
 ```bash
