@@ -1,0 +1,9 @@
+# Вне Диалога — только контекст → Обычный разговор
+name: Обычный разговор без Слова-вызова
+whitelist: [petya, vasya]
+steps:
+  - {t: 2.0, utterance: {user: petya, text: "кто вечером в кс?"}}
+  - {t: 4.0, utterance: {user: vasya, text: "я после восьми"}}
+  - {t: 30.0, utterance: {user: petya, text: "ну давай тогда в девять"}}
+  - expect: [AddToContext(petya), AddToContext(vasya), AddToContext(petya)]
+  - state: {dialogue: false, clone: idle}

@@ -1,0 +1,18 @@
+# Окно ожидания → Собеседник замолчал
+name: Петя молчит 21 секунду после ответа
+whitelist: [petya, vasya]
+steps:
+  - {t: 1.0, utterance: {user: petya, text: "Теребот, как дела?"}}
+  - expect: [StartDialogue(petya), Respond]
+  - {t: 2.0, clone: started}
+  - {t: 5.0, clone: finished}
+  - {t: 15.0, tick: true}
+  - state: {dialogue: true, window_left: 10.0}
+  - {t: 25.0, tick: true}
+  - expect: []
+  - {t: 26.0, tick: true}
+  - expect:
+      - EndDialogue: {reason: "окно ожидания"}
+  - {t: 30.0, utterance: {user: petya, text: "а почему?"}}
+  - expect: [AddToContext(petya)]
+  - state: {dialogue: false}

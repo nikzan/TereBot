@@ -1,0 +1,15 @@
+# Окно ожидания → Ответ не удалось подготовить
+name: Подготовка ответа провалилась, Петя молчит 21 секунду
+whitelist: [petya]
+steps:
+  - {t: 1.0, utterance: {user: petya, text: "Теребот, как дела?"}}
+  - expect: [StartDialogue(petya), Respond]
+  - {t: 10.0, tick: true}
+  - state: {clone: preparing, window_left: null}
+  - {t: 15.0, clone: failed}
+  - state: {dialogue: true, clone: idle, window_left: 20.0}
+  - {t: 35.0, tick: true}
+  - expect: []
+  - {t: 36.0, tick: true}
+  - expect: [EndDialogue]
+  - state: {dialogue: false, clone: idle}

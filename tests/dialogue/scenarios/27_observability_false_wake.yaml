@@ -1,0 +1,13 @@
+# Наблюдаемость решений → Разбор ложного срабатывания
+# «теребонь» похоже на «теребот» ровно на порог 80 — Клона никто не звал, но он начал Диалог.
+name: Разбор ложного срабатывания по Журналу Сессии
+whitelist: [petya]
+steps:
+  - {t: 1.0, utterance: {user: petya, text: "ну и теребонь у вас тут"}}
+  - expect:
+      - StartDialogue: {user: petya, reason: "найдено Слово-вызов «теребонь»", text: "ну и теребонь у вас тут"}
+      - Respond: {reason: "в Реплике «ну и теребонь у вас тут»"}
+  - {t: 2.0, clone: started}
+  - {t: 3.0, clone: finished}
+  - {t: 8.0, tick: true}
+  - state: {dialogue: true, interlocutor: petya, window_left: 15.0}

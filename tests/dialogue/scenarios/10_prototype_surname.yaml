@@ -1,0 +1,7 @@
+# Имя Прототипа не будит Клона → Фамилия
+name: Обращение к Прототипу по фамилии
+whitelist: [petya, terem]
+steps:
+  - {t: 1.0, utterance: {user: petya, text: "Терешкин, иди сюда"}}
+  - expect: [AddToContext(petya)]
+  - state: {dialogue: false}

@@ -1,0 +1,11 @@
+# Остальные участники во время Диалога → Реплика со стороны
+name: Вася вставляет реплику во время Диалога с Петей
+whitelist: [petya, vasya]
+steps:
+  - {t: 1.0, utterance: {user: petya, text: "Теребот, как дела?"}}
+  - expect: [StartDialogue(petya), Respond]
+  - {t: 2.0, clone: started}
+  - {t: 4.0, clone: finished}
+  - {t: 6.0, utterance: {user: vasya, text: "да он опять за своё"}}
+  - expect: [AddToContext(vasya)]
+  - state: {interlocutor: petya, clone: idle}

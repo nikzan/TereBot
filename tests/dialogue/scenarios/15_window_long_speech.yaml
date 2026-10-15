@@ -1,0 +1,15 @@
+# Окно ожидания → Собеседник долго говорит
+name: Петя начал говорить через 15 с и говорит 10 с
+whitelist: [petya]
+steps:
+  - {t: 1.0, utterance: {user: petya, text: "Теребот, расскажи что-нибудь"}}
+  - expect: [StartDialogue(petya), Respond]
+  - {t: 2.0, clone: started}
+  - {t: 5.0, clone: finished}
+  - {t: 22.0, speech: {user: petya, ms: 2000}}
+  - {t: 25.0, speech: {user: petya, ms: 5000}}
+  - {t: 26.0, tick: true}
+  - {t: 28.0, speech: {user: petya, ms: 8000}}
+  - {t: 30.0, utterance: {user: petya, text: "короче, вчера была такая история", start: 20.0}}
+  - expect:
+      - Respond: {texts: ["короче, вчера была такая история"]}

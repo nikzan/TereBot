@@ -1,0 +1,17 @@
+# Перебивание Собеседником → Собеседник перебил
+name: Петя перебивает Клона
+whitelist: [petya, vasya]
+steps:
+  - {t: 1.0, utterance: {user: petya, text: "Теребот, расскажи про отпуск"}}
+  - expect: [StartDialogue(petya), Respond]
+  - {t: 2.0, clone: started}
+  - {t: 5.5, speech: {user: petya, ms: 500}}
+  - expect: []
+  - {t: 6.0, speech: {user: petya, ms: 1000}}
+  - expect: [InterruptClone]
+  - state: {clone: idle}
+  - {t: 6.2, speech: {user: petya, ms: 1200}}
+  - {t: 6.3, clone: finished}
+  - {t: 6.8, utterance: {user: petya, text: "подожди, а куда именно?", start: 5.0}}
+  - expect:
+      - Respond: {texts: ["подожди, а куда именно?"]}

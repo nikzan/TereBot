@@ -1,0 +1,20 @@
+# Переключение на нового вызвавшего → Вызов, пока Клон говорит
+# Ответ Пете — три предложения; Реплика Васи приходит, пока звучит первое.
+name: Вася перехватывает, пока Клон говорит
+whitelist: [petya, vasya]
+steps:
+  - {t: 0.0, utterance: {user: petya, text: "Теребот, расскажи про отпуск"}}
+  - expect: [StartDialogue(petya), Respond]
+  - {t: 1.0, clone: started}
+  - {t: 2.5, utterance: {user: vasya, text: "Теребот, стоп, скажи мне", start: 1.5}}
+  - expect: [StopAfterCurrentPhrase, SwitchInterlocutor(vasya)]
+  - state: {interlocutor: vasya, clone: speaking, stopping: true}
+  - {t: 3.1, clone: phrase_ended}
+  - expect:
+      - Respond: {texts: ["Теребот, стоп, скажи мне"]}
+  - state: {clone: preparing, stopping: false}
+  # Остаток ответа Пете не звучит; запоздавшее «закончил» от старого ответа ничего не меняет.
+  - {t: 3.2, clone: finished}
+  - expect: []
+  - {t: 4.0, clone: started}
+  - state: {interlocutor: vasya, clone: speaking}

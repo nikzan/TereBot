@@ -1,0 +1,6 @@
+# Начало Диалога по Слову-вызову → Вызов в середине фразы
+name: Вызов в середине фразы
+whitelist: [petya, vasya]
+steps:
+  - {t: 3.0, utterance: {user: petya, text: "слушай, теребот, а ты в кс играешь?", start: 1.0}}
+  - expect: [StartDialogue(petya), Respond]

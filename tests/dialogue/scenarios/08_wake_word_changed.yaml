@@ -1,0 +1,9 @@
+# Распознавание Слова-вызова → Смена Слова-вызова в настройках
+name: Слово-вызов заменено на «Тереша»
+whitelist: [petya, vasya]
+settings: {wake_words: ["тереша"]}
+steps:
+  - {t: 1.0, utterance: {user: vasya, text: "Теребот, привет"}}
+  - expect: [AddToContext(vasya)]
+  - {t: 3.0, utterance: {user: petya, text: "Тереша, привет"}}
+  - expect: [StartDialogue(petya), Respond]

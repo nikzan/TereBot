@@ -1,0 +1,7 @@
+# Имя Прототипа не будит Клона → Обращение к живому Прототипу
+name: Обращение к живому Прототипу по имени
+whitelist: [petya, terem]
+steps:
+  - {t: 1.0, utterance: {user: petya, text: "Терем, ты где был?"}}
+  - expect: [AddToContext(petya)]
+  - state: {dialogue: false}
