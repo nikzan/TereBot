@@ -13,6 +13,32 @@ dev = [
 ]
 # Зависимости для обучения на кластере (scripts/), ставятся через `uv sync --group train`.
 train = []
+# Бэкенды Голоса для бенчмарка (scripts/bench_voice.py). Взаимоисключающие, запуск — `uv run --group <g>`.
+tts-qwen-torch = [
+    "qwen-tts==0.1.1",
+    "transformers==4.57.3",
+    "psutil>=7.2.2",
+    "soundfile>=0.13.1",
+]
+tts-mlx = [
+    "mlx-audio==0.5.9",
+    "psutil>=7.2.2",
+    "soundfile>=0.13.1",
+]
+tts-chatterbox = [
+    "chatterbox-tts==0.1.7",
+    # resemble-perth (водяной знак Chatterbox) импортирует pkg_resources, которого нет в новых setuptools.
+    "setuptools<81",
+    "psutil>=7.2.2",
+    "soundfile>=0.13.1",
+]
+# Метрики качества Голоса (terebot.voice_eval).
+eval = [
+    "onnx-asr[cpu,hub]==0.12.0",
+    "speechbrain==1.1.2",
+    "psutil>=7.2.2",
+    "soundfile>=0.13.1",
+]
 
 [build-system]
 requires = ["uv_build>=0.8.4,<0.9"]
@@ -28,4 +54,14 @@ select = ["E", "F", "W", "I", "UP", "B", "SIM"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# scripts/ — не пакет; так тесты импортируют bench_voice.
+pythonpath = ["scripts"]
 addopts = ["-ra", "--strict-markers"]
+
+[tool.uv]
+# qwen-tts держит transformers==4.57.3, mlx-audio — >=5.14, chatterbox-tts — ==5.2.0 и torch==2.6.0
+# (speechbrain требует torch>=2.7.1), поэтому группы не ставятся вместе.
+conflicts = [
+    [{ group = "tts-qwen-torch" }, { group = "tts-mlx" }, { group = "tts-chatterbox" }],
+    [{ group = "eval" }, { group = "tts-chatterbox" }],
+]
