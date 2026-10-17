@@ -56,7 +56,7 @@
 
 ## Этапы
 
-Этапы нарезаны на OpenSpec changes в `openspec/changes/`: этап 1 — `setup-monorepo`, этап 2 — `add-echo-test-gateway`, этап 3 — `evaluate-voice-on-mps`, этап 4 — `add-voice-dataset-pipeline`, часть этапа 6 — `add-dialogue-policy`. Changes для этапов 5, 6 (остаток) и 7 создаются после завершения этапов, от которых они зависят.
+Этапы нарезаны на OpenSpec changes в `openspec/changes/`: этап 1 — `setup-monorepo`, этап 2 — `add-echo-test-gateway`, этап 3 — `evaluate-voice-on-mps`, этап 4 — `add-voice-dataset-pipeline`, этап 5 — `finetune-voice` (пробное обучение на неполном датасете, затем финальное), этап 6 — `add-dialogue-policy` и `add-core-pipeline`. Change для этапа 7 создаётся после этапов 5 и 6.
 
 Каждый этап считается готовым, когда выполнен его критерий.
 
