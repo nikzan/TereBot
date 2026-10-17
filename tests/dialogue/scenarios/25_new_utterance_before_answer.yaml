@@ -1,0 +1,13 @@
+# Новая Реплика до начала ответа → Досказал мысль
+name: Петя досказал мысль до начала ответа
+whitelist: [petya]
+steps:
+  - {t: 1.0, utterance: {user: petya, text: "Теребот, как думаешь"}}
+  - expect: [StartDialogue(petya), Respond]
+  - {t: 2.5, utterance: {user: petya, text: "стоит купить новую видеокарту?", start: 1.4}}
+  - expect:
+      - CancelPendingResponse
+      - Respond: {texts: ["Теребот, как думаешь", "стоит купить новую видеокарту?"]}
+  - {t: 3.5, clone: started}
+  - {t: 8.0, clone: finished}
+  - expect: []

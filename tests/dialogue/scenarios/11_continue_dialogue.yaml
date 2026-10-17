@@ -1,0 +1,11 @@
+# Ответ Собеседнику без повторного вызова → Продолжение Диалога
+name: Петя продолжает Диалог без Слова-вызова
+whitelist: [petya, vasya]
+steps:
+  - {t: 1.0, utterance: {user: petya, text: "Теребот, ты где был вчера?"}}
+  - expect: [StartDialogue(petya), Respond]
+  - {t: 2.0, clone: started}
+  - {t: 6.0, clone: finished}
+  - {t: 8.0, utterance: {user: petya, text: "а почему?", start: 7.3}}
+  - expect:
+      - Respond: {texts: ["а почему?"]}

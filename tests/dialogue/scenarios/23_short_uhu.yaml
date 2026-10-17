@@ -1,0 +1,11 @@
+# Перебивание Собеседником → Короткое «угу»
+name: Петя поддакивает «угу»
+whitelist: [petya]
+steps:
+  - {t: 1.0, utterance: {user: petya, text: "Теребот, расскажи про отпуск"}}
+  - expect: [StartDialogue(petya), Respond]
+  - {t: 2.0, clone: started}
+  - {t: 4.4, speech: {user: petya, ms: 400}}
+  - {t: 4.5, utterance: {user: petya, text: "угу", start: 4.0}}
+  - expect: [AddToContext(petya)]
+  - state: {clone: speaking}

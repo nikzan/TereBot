@@ -1,0 +1,8 @@
+# Начало Диалога по Слову-вызову → Только Слово-вызов
+name: Только Слово-вызов
+whitelist: [petya, vasya]
+steps:
+  - {t: 1.0, utterance: {user: petya, text: "Теребот?"}}
+  - expect:
+      - StartDialogue(petya)
+      - Respond: {texts: ["Теребот?"]}

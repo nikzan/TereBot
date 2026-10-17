@@ -1,0 +1,9 @@
+# Начало Диалога по Слову-вызову → Вызов в начале фразы
+name: Вызов в начале фразы
+whitelist: [petya, vasya]
+steps:
+  - {t: 2.0, utterance: {user: petya, text: "Теребот, ты где был вчера?", start: 0.5}}
+  - expect:
+      - StartDialogue(petya)
+      - Respond: {texts: ["Теребот, ты где был вчера?"]}
+  - state: {dialogue: true, interlocutor: petya, clone: preparing}

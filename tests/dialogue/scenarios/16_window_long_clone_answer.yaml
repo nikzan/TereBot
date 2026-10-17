@@ -1,0 +1,14 @@
+# Окно ожидания → Долгий ответ Клона
+name: Клон отвечает 25 секунд
+whitelist: [petya]
+steps:
+  - {t: 1.0, utterance: {user: petya, text: "Теребот, расскажи про отпуск"}}
+  - expect: [StartDialogue(petya), Respond]
+  - {t: 2.0, clone: started}
+  - {t: 22.0, tick: true}
+  - state: {dialogue: true, clone: speaking, window_left: null}
+  - {t: 27.0, clone: finished}
+  - {t: 40.0, tick: true}
+  - state: {dialogue: true, window_left: 7.0}
+  - {t: 47.5, tick: true}
+  - expect: [EndDialogue]

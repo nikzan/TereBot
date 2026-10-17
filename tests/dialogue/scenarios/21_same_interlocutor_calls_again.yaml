@@ -1,0 +1,12 @@
+# Переключение на нового вызвавшего → Тот же Собеседник снова зовёт
+name: Петя снова зовёт Клона
+whitelist: [petya, vasya]
+steps:
+  - {t: 1.0, utterance: {user: petya, text: "Теребот, как дела?"}}
+  - expect: [StartDialogue(petya), Respond]
+  - {t: 2.0, clone: started}
+  - {t: 4.0, clone: finished}
+  - {t: 6.0, utterance: {user: petya, text: "Теребот, слушай"}}
+  - expect:
+      - Respond: {texts: ["Теребот, слушай"], reason: "повторный вызов"}
+  - state: {interlocutor: petya}

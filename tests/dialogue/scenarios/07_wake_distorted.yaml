@@ -1,0 +1,6 @@
+# Распознавание Слова-вызова → Небольшое искажение
+name: Слово-вызов распознано с искажением
+whitelist: [petya]
+steps:
+  - {t: 1.0, utterance: {user: petya, text: "Теребод, ты тут?"}}
+  - expect: [StartDialogue(petya), Respond]

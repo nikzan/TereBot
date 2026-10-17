@@ -1,0 +1,14 @@
+# Ответ Собеседнику без повторного вызова → Короткая Реплика поверх Клона
+name: Петя коротко вставил «а почему?», пока Клон говорит
+whitelist: [petya, vasya]
+steps:
+  - {t: 1.0, utterance: {user: petya, text: "Теребот, ты где был вчера?"}}
+  - expect: [StartDialogue(petya), Respond]
+  - {t: 2.0, clone: started}
+  - {t: 3.5, speech: {user: petya, ms: 500}}
+  - {t: 3.7, utterance: {user: petya, text: "а почему?", start: 3.0}}
+  - expect: [AddToContext(petya)]
+  - state: {clone: speaking}
+  - {t: 6.0, clone: finished}
+  - expect: []
+  - state: {dialogue: true, clone: idle}

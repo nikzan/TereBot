@@ -55,3 +55,10 @@
 | Что | Ссылка | Проверено 2026-10-14 |
 |---|---|---|
 | RUAccent | https://github.com/Den4ikAI/ruaccent | `1.5.8.3` |
+
+## Политика Диалога
+
+| Что | Ссылка | Проверено 2026-10-15 |
+|---|---|---|
+| `rapidfuzz` | https://pypi.org/project/RapidFuzz/ · https://rapidfuzz.github.io/RapidFuzz/Usage/fuzz.html | `3.14.6`; `fuzz.ratio` — нормированное расстояние Индела, 0–100 |
+| `pyyaml` (dev, сценарии) | https://pypi.org/project/PyYAML/ | `6.0.3` |

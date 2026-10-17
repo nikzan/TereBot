@@ -1,0 +1,12 @@
+# Собеседник вышел → Ушёл посреди ответа
+name: Петя вышел из канала посреди ответа
+whitelist: [petya, vasya]
+steps:
+  - {t: 1.0, utterance: {user: petya, text: "Теребот, расскажи про отпуск"}}
+  - expect: [StartDialogue(petya), Respond]
+  - {t: 2.0, clone: started}
+  - {t: 3.0, left: vasya}
+  - expect: []
+  - {t: 4.0, left: petya}
+  - expect: [InterruptClone, EndDialogue]
+  - state: {dialogue: false, interlocutor: null, clone: idle}

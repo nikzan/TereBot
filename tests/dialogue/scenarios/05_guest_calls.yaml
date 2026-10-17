@@ -1,0 +1,8 @@
+# Участники не из whitelist → Гость зовёт Клона
+name: Гость зовёт Клона
+whitelist: [petya, vasya]
+steps:
+  - {t: 1.0, utterance: {user: guest, text: "Теребот, привет"}}
+  - {t: 2.0, speech: {user: guest, ms: 3000}}
+  - expect: []
+  - state: {dialogue: false}

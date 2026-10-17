@@ -1,0 +1,6 @@
+# Распознавание Слова-вызова → Разбито на два слова
+name: Слово-вызов разбито на два слова
+whitelist: [petya]
+steps:
+  - {t: 1.0, utterance: {user: petya, text: "тере бот, привет"}}
+  - expect: [StartDialogue(petya), Respond]

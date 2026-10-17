@@ -1,0 +1,13 @@
+# Переключение на нового вызвавшего → Вызов, пока Клон молчит
+name: Вася зовёт, пока Клон молчит
+whitelist: [petya, vasya]
+steps:
+  - {t: 1.0, utterance: {user: petya, text: "Теребот, как дела?"}}
+  - expect: [StartDialogue(petya), Respond]
+  - {t: 2.0, clone: started}
+  - {t: 4.0, clone: finished}
+  - {t: 6.0, utterance: {user: vasya, text: "Теребот, а мне ответь"}}
+  - expect:
+      - SwitchInterlocutor(vasya)
+      - Respond: {texts: ["Теребот, а мне ответь"]}
+  - state: {interlocutor: vasya}

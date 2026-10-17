@@ -1,0 +1,12 @@
+# Остальные не перебивают → Вася говорит поверх Клона
+name: Вася 3 секунды говорит о своём, пока Клон отвечает Пете
+whitelist: [petya, vasya]
+steps:
+  - {t: 1.0, utterance: {user: petya, text: "Теребот, расскажи про отпуск"}}
+  - expect: [StartDialogue(petya), Respond]
+  - {t: 2.0, clone: started}
+  - {t: 4.0, speech: {user: vasya, ms: 1000}}
+  - {t: 6.0, speech: {user: vasya, ms: 3000}}
+  - {t: 6.2, utterance: {user: vasya, text: "кстати, я новую мышку купил", start: 3.0}}
+  - expect: [AddToContext(vasya)]
+  - state: {interlocutor: petya, clone: speaking}
