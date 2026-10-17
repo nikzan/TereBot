@@ -21,7 +21,7 @@
 ## 4. Документы и уборка
 
 - [x] 4.1 Обновить `docs/REFERENCES.md` (патч, его sha256, источники #278/#337/#371/#384, условие удаления), design.md `finetune-voice` (решение «Код дообучения QwenLM» — со ссылкой на патч), её задачу 4.2 (чекпоинт `smoke-fix` вместо 3.2) и формулировку этапа 5 в `docs/PLAN.md` («официальным скриптом Qwen3-TTS с патчем выравнивания»); проверка: `openspec validate finetune-voice` и `openspec validate fix-voice-sft-alignment` проходят, ссылки в документах ведут на существующие файлы
-- [ ] 4.2 [владелец] Подтвердить удаление на кластере `data/voice/pilot-2026-10-17/checkpoint-epoch-*` и `data/voice/smoke/checkpoint-epoch-0` (~47 ГБ), после чего агент удаляет их; проверка: `du -sh data/voice/*` на кластере не показывает этих каталогов, а `run.json`, `train.log` и `listen/` старого пилота есть на Mac
+- [x] 4.2 [владелец] Подтвердить удаление на кластере `data/voice/pilot-2026-10-17/checkpoint-epoch-*` и `data/voice/smoke/checkpoint-epoch-0` (~47 ГБ), после чего агент удаляет их; проверка: `du -sh data/voice/*` на кластере не показывает этих каталогов, а `run.json`, `train.log` и `listen/` старого пилота есть на Mac
 
 ## 5. Готовность к продолжению этапа 5
 

@@ -110,7 +110,7 @@ CUDA_VISIBLE_DEVICES=1 HF_HOME=$PWD/data/hf .venv/bin/qwen-lora scripts/voice_tr
 
 ## Патч к QwenLM
 
-На закреплённом коммите `sft_12hz.py` учит модель другой задаче, чем та, которую решает синтез (QwenLM/Qwen3-TTS#371 и #337, PR #278 и #384). Без исправления чекпоинты не выдают EOS и синтезируют до `max_new_tokens`: так было в пробном прогоне 2026-10-17 на всех эпохах. Разбор — в [design.md change `fix-voice-sft-alignment`](../../openspec/changes/fix-voice-sft-alignment/design.md).
+На закреплённом коммите `sft_12hz.py` учит модель другой задаче, чем та, которую решает синтез (QwenLM/Qwen3-TTS#371 и #337, PR #278 и #384). Без исправления чекпоинты не выдают EOS и синтезируют до `max_new_tokens`: так было в пробном прогоне 2026-10-17 на всех эпохах. Разбор — в [design.md change `fix-voice-sft-alignment`](../../openspec/changes/archive/2026-10-18-fix-voice-sft-alignment/design.md).
 
 Исправление — [patches/sft_12hz-alignment.patch](patches/sft_12hz-alignment.patch), правит только `finetuning/sft_12hz.py`:
 - текст проходит `text_projection`;

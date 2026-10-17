@@ -4,7 +4,7 @@
 
 ## Ошибка цели обучения
 
-Пробный прогон `pilot-2026-10-17` официальным `sft_12hz.py` на коммите `022e286` дал чекпоинты, которые не заканчивают фразу: каждая эпоха синтезирует до лимита `max_new_tokens`, а Base на том же окружении останавливается сам. Разбор — в `openspec/changes/fix-voice-sft-alignment/design.md`. Исправление — патч `scripts/voice_train/patches/sft_12hz-alignment.patch`.
+Пробный прогон `pilot-2026-10-17` официальным `sft_12hz.py` на коммите `022e286` дал чекпоинты, которые не заканчивают фразу: каждая эпоха синтезирует до лимита `max_new_tokens`, а Base на том же окружении останавливается сам. Разбор — в `openspec/changes/archive/2026-10-18-fix-voice-sft-alignment/design.md`. Исправление — патч `scripts/voice_train/patches/sft_12hz-alignment.patch`.
 
 Проверка без обучения, 2026-10-18: `scripts/voice_train/check_objective.py pilot-2026-10-17 --clips 16`. Base (`Qwen3-TTS-12Hz-1.7B-Base`, bf16, sdpa), первые 16 клипов `train.codes.jsonl`, батч 2 через `TTSDataset.collate_fn` из vendor, `torch.no_grad`. CE усреднена по всем меткам: talker — код 0 и EOS, sub-talker — коды 1–15.
 
