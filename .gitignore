@@ -8,3 +8,5 @@ node_modules/
 
 # Локальные переопределения настроек
 config/settings.local.toml
+# Личные версии файлов личности Клона (config/passport.local.md и т. п.) — по образцу settings.local.toml
+config/*.local.*

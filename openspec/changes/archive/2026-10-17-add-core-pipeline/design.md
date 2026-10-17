@@ -38,12 +38,12 @@
 Новая группа uv `core`: `mlx-audio==0.5.9` (тянет `transformers>=5.14`, `mlx`), `onnx-asr[cpu,hub]==0.12.0`, `websockets`, `psutil`, `num2words`, `soundfile`. Конфликтует с `tts-qwen-torch`, `tts-chatterbox` и `train`. Torch в ядре не нужен: Silero VAD берём в ONNX.
 
 ### Протокол шлюз ↔ ядро
-Ядро — WebSocket-сервер на `127.0.0.1:<[core].port>`, шлюз — клиент: встроенный `WebSocket` Node 22, без новых npm-пакетов. Шлюз переподключается каждые 3 с. После подключения он присылает `hello` с текущим состоянием: есть ли Сессия, её каталог, участники в канале. Так перезапуск ядра не требует повторного `/join`.
+Ядро — WebSocket-сервер на `127.0.0.1:<[core].port>`, шлюз — клиент: встроенный `WebSocket` Node 22, без новых npm-пакетов. Шлюз переподключается каждые 3 с. После подключения он присылает `hello` с текущим состоянием: есть ли Сессия, её каталог, участники в канале. Так перезапуск ядра не требует повторного `/join`. После `session_start` шлюз присылает `participant_joined` и для тех, кто уже сидел в канале до `/join`: иначе ядро не знало бы их имён.
 
 Сообщения двух видов:
 - **Управляющие** — JSON-тексты `{"type": ..., ...}`:
   - шлюз → ядро: `hello`, `session_start {session, t}`, `session_end`, `participant_joined {user_id, name, t}`, `participant_left {user_id, t}`, `segment_start` / `segment_end {user_id, t}`, `playback_started` / `phrase_ended {response_id, phrase, t}`, `playback_finished {response_id, t, interrupted}`;
-  - ядро → шлюз: `phrase_begin {response_id, phrase}`, `phrase_end_marker {response_id, phrase}`, `stop_after_phrase {response_id}`, `stop_now`.
+  - ядро → шлюз: `phrase_begin {response_id, phrase}`, `phrase_end_marker {response_id, phrase}`, `response_end {response_id}`, `stop_after_phrase {response_id}`, `stop_now`. `response_end` — фраз в ответе больше не будет: без него шлюз не отличит конец ответа от фразы, которую LLM ещё генерирует.
 - **Бинарные** — звук. Заголовок 16 байт: тип (1 байт: 1 — звук участника, 2 — звук ответа), 7 байт резерва, `t` в мс (float64 LE). Для звука участника дальше идёт user ID (uint64 LE), для звука ответа — `response_id` и номер фразы (uint32 LE каждый). Затем PCM s16le моно 48 кГц. Звук ответа ядро ресемплирует 24 → 48 кГц само (`resample_poly` ×2), чтобы шлюзу осталось только `monoToStereo`.
 
 Кодек сообщений — чистая логика с двух сторон: `gateway/src/core-protocol.ts` и `terebot.core.protocol`. Тесты с обеих сторон сверяют один и тот же байтовый пример (`tests/fixtures/core-protocol/`). Звук участников не из whitelist шлюз не шлёт: Receiver и так подписывается только на них.
@@ -54,6 +54,7 @@
 Новый модуль `speech-out.ts`. Ядро шлёт звук фразы кусками по мере синтеза, а шлюз складывает их в очередь `(response_id, фраза) → кадры`. Таймер раз в 20 мс подаёт в Player по одному кадру, как это уже делает режим эха. Поэтому шлюз точно знает, какая фраза звучит:
 - первый кадр ответа → `playback_started`;
 - последний кадр фразы после `phrase_end_marker` → `phrase_ended`;
+- `phrase_ended` последней фразы после `response_end` → `playback_finished`;
 - если звук фразы ещё не пришёл, таймер ждёт, а не объявляет фразу законченной.
 
 `stop_after_phrase` выбрасывает очередь за текущей фразой, `stop_now` вызывает `Player.stop()` и очищает очередь. Логика очереди без таймера и Discord — чистая, её проверяет `node:test`.
@@ -95,7 +96,7 @@
 
 **LLM.** `POST /v1/chat/completions` с `stream: true`, `max_tokens` из настроек; `llama-server` запускается с `--reasoning off`. На случай, если блок `<think>…</think>` всё равно пришёл, он вырезается до деления на фразы.
 
-**Фразы.** Потоковый делитель режет текст по `.`, `!`, `?`, `…` и переводу строки, но не раньше `[voice].min_phrase_chars` (20 символов), чтобы не синтезировать «Ну.» отдельно. Длинную фразу без точки он режет по запятой после `[voice].max_phrase_chars` (200). Это чистая логика.
+**Фразы.** Потоковый делитель режет текст по `.`, `!`, `?`, `…` и переводу строки, но не раньше `[voice].min_phrase_chars` (20 символов), чтобы не синтезировать «Ну.» отдельно. Исключение — последняя фраза ответа: склеить её с предыдущей нельзя, та уже ушла в синтез. Длинную фразу без точки он режет по запятой после `[voice].max_phrase_chars` (200). Это чистая логика.
 
 **Текст для Голоса** — чистая функция:
 - убрать эмодзи и разметку;

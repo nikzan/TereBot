@@ -1,4 +1,5 @@
-// Discord-шлюз Клона. Этап 2: /join и /leave, раздельный приём голоса, эхо и запись WAV.
+// Discord-шлюз Клона: /join и /leave, раздельный приём голоса, запись WAV и связь с ядром
+// (или режим эха для Эхо-теста — они не работают вместе).
 
 import { join } from "node:path";
 
@@ -7,6 +8,7 @@ import { Client, Events, GatewayIntentBits, type VoiceBasedChannel } from "disco
 import { AutoLeave, handleCommand, registerCommands } from "./commands.ts";
 import { type Settings, SettingsError, loadSettings, resolveSettingsPath } from "./config.ts";
 import { ChannelConnection } from "./connection.ts";
+import { CoreClient, type Participant, type SessionInfo } from "./core-client.ts";
 import { Echo } from "./echo.ts";
 import { logger } from "./log.ts";
 import { Player } from "./player.ts";
@@ -53,7 +55,8 @@ const log = logger("gateway");
 const { gateway: gw, recording } = settings;
 log(
   `эхо: ${gw.echo ? `вкл, задержка ${gw.echoDelayMs} мс` : "выкл"}; ` +
-    `запись: ${recording.enabled ? recording.dir : "выкл"}`,
+    `запись: ${recording.enabled ? recording.dir : "выкл"}; ` +
+    `ядро: ${gw.echo ? "не подключается при эхе" : `127.0.0.1:${settings.core.port}`}`,
 );
 
 const connection = new ChannelConnection();
@@ -66,8 +69,28 @@ const player = new Player();
 const echo = gw.echo ? new Echo(receiver, player, gw.echoDelayMs) : null;
 
 // Сессия — от /join до /leave или автовыхода. Переподключение её не прерывает:
-// запись продолжается в тот же каталог.
+// запись продолжается в тот же каталог, а ядро ведёт Журнал под тем же именем.
+let session: SessionInfo | null = null;
 let recorder: Recorder | null = null;
+
+function whitelistedParticipants(): Participant[] {
+  const channel = connection.channel;
+  if (!session || !channel) return [];
+  return channel.members
+    .filter((m) => !m.user.bot && settings.discord.whitelist.includes(m.id))
+    .map((m) => ({ user_id: m.id, name: m.displayName }));
+}
+
+const core = gw.echo
+  ? null
+  : new CoreClient({
+      port: settings.core.port,
+      whitelist: settings.discord.whitelist,
+      receiver,
+      player,
+      state: () => ({ session, participants: whitelistedParticipants() }),
+    });
+core?.start();
 
 receiver.on("segmentStart", (e) => recorder?.segmentStart(e));
 receiver.on("frame", (e) => recorder?.frame(e));
@@ -95,17 +118,24 @@ function humansIn(channel: VoiceBasedChannel): number {
 }
 
 function startSession(): void {
-  if (recorder || !recording.enabled) return;
+  if (session) return;
   const now = new Date();
-  recorder = new Recorder(join(recording.dir, sessionDirName(now)), settings.discord.whitelist, now.getTime());
+  session = { name: sessionDirName(now), t: now.getTime() };
+  log(`Сессия ${session.name}`);
+  if (!recording.enabled) return;
+  recorder = new Recorder(join(recording.dir, session.name), settings.discord.whitelist, session.t);
   log(`Сессия: запись в ${recorder.dir}`);
 }
 
 function endSession(reason: string): void {
   autoLeave.cancel();
   recorder?.closeAll();
-  if (recorder) log(`Сессия закончена (${reason}), записи в ${recorder.dir}`);
+  if (session) {
+    log(`Сессия закончена (${reason})` + (recorder ? `, записи в ${recorder.dir}` : ""));
+    core?.sessionEnd(Date.now());
+  }
   recorder = null;
+  session = null;
   receiver.logStats();
 }
 
@@ -121,6 +151,12 @@ const actions = {
       throw e;
     }
     autoLeave.update(humansIn(channel));
+    // Ядро узнаёт о Сессии, когда канал готов: его приветствие сразу звучит.
+    if (session) {
+      core?.sessionStart(session);
+      // Кто уже сидел в канале, о входе не сообщал: имена для ядра — отсюда.
+      for (const p of whitelistedParticipants()) core?.participantJoined(p, session.t);
+    }
     return channel.name;
   },
   async leave(): Promise<boolean> {
@@ -143,6 +179,14 @@ client.on(Events.VoiceStateUpdate, (oldState, newState) => {
   const channel = connection.channel;
   if (!channel || (oldState.channelId !== channel.id && newState.channelId !== channel.id)) return;
   autoLeave.update(humansIn(channel));
+  const member = newState.member ?? oldState.member;
+  if (!session || !member || member.user.bot) return;
+  const t = Date.now();
+  if (newState.channelId === channel.id && oldState.channelId !== channel.id) {
+    core?.participantJoined({ user_id: member.id, name: member.displayName }, t);
+  } else if (oldState.channelId === channel.id && newState.channelId !== channel.id) {
+    core?.participantLeft(member.id, t);
+  }
 });
 
 client.once(Events.ClientReady, async (ready) => {
@@ -169,6 +213,7 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
     // Сначала файлы: заголовки WAV должны быть исправлены до выхода.
     connection.leave(signal);
     endSession(signal);
+    core?.stop();
     receiver.close();
     await client.destroy();
     process.exit(0);

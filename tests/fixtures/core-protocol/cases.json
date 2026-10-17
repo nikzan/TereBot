@@ -1,0 +1,88 @@
+[
+  {
+    "file": "participant_audio.bin",
+    "audio": {
+      "kind": "participant",
+      "user_id": "222222222222222222",
+      "t": 1760712345678.25,
+      "pcm": [
+        0,
+        1,
+        -1,
+        32767,
+        -32768
+      ]
+    }
+  },
+  {
+    "file": "response_audio.bin",
+    "audio": {
+      "kind": "response",
+      "response_id": 7,
+      "phrase": 2,
+      "t": 1760712345700.5,
+      "pcm": [
+        100,
+        -100,
+        2000
+      ]
+    }
+  },
+  {
+    "file": "hello.json",
+    "message": {
+      "type": "hello",
+      "session": {
+        "name": "2026-10-17_20-00-00",
+        "t": 1760712000000
+      },
+      "participants": [
+        {
+          "user_id": "222222222222222222",
+          "name": "Вася"
+        }
+      ],
+      "t": 1760712345000
+    }
+  },
+  {
+    "file": "hello_no_session.json",
+    "message": {
+      "type": "hello",
+      "session": null,
+      "participants": [],
+      "t": 1760712345000
+    }
+  },
+  {
+    "file": "segment_start.json",
+    "message": {
+      "type": "segment_start",
+      "user_id": "222222222222222222",
+      "t": 1760712345678
+    }
+  },
+  {
+    "file": "playback_finished.json",
+    "message": {
+      "type": "playback_finished",
+      "response_id": 7,
+      "t": 1760712346000,
+      "interrupted": true
+    }
+  },
+  {
+    "file": "phrase_end_marker.json",
+    "message": {
+      "type": "phrase_end_marker",
+      "response_id": 7,
+      "phrase": 2
+    }
+  },
+  {
+    "file": "stop_now.json",
+    "message": {
+      "type": "stop_now"
+    }
+  }
+]

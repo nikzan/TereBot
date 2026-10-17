@@ -41,10 +41,16 @@ export interface RecordingSettings {
   dir: string;
 }
 
+export interface CoreSettings {
+  // Ядро — WebSocket-сервер на 127.0.0.1:port.
+  port: number;
+}
+
 export interface Settings {
   discord: DiscordSettings;
   gateway: GatewaySettings;
   recording: RecordingSettings;
+  core: CoreSettings;
 }
 
 // Секции [gateway] и [recording] необязательны: недостающие поля берутся отсюда.
@@ -58,6 +64,8 @@ export const GATEWAY_DEFAULTS: GatewaySettings = {
 };
 
 export const RECORDING_DEFAULTS = { enabled: true, dir: "data/recordings" } as const;
+
+export const CORE_DEFAULTS: CoreSettings = { port: 8765 };
 
 export const REPO_ROOT = fileURLToPath(new URL("../../", import.meta.url));
 
@@ -150,5 +158,10 @@ export function loadSettings(path: string = resolveSettingsPath()): Settings {
     dir: resolve(REPO_ROOT, dir),
   };
 
-  return { discord: { guildId, whitelist: whitelist as string[] }, gateway, recording };
+  // Остальные секции ядра ([speech], [llm], …) шлюз не читает.
+  const coreTable = optionalTable("core");
+  const port = int(coreTable, "core.port", CORE_DEFAULTS.port, 1);
+  if (port > 65535) throw fail("core.port", "должно быть номером порта до 65535");
+
+  return { discord: { guildId, whitelist: whitelist as string[] }, gateway, recording, core: { port } };
 }
