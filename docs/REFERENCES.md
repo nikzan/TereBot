@@ -25,6 +25,8 @@
 | GigaAM-v3 ONNX | https://huggingface.co/istupakov/gigaam-v3-onnx | MIT |
 | `onnx-asr` | https://github.com/istupakov/onnx-asr · https://istupakov.github.io/onnx-asr/usage/ | `0.12.0`; имена моделей: `gigaam-v3-ctc`, `gigaam-v3-rnnt`, `gigaam-v3-e2e-ctc`, `gigaam-v3-e2e-rnnt` (e2e — с пунктуацией). Бенчмарков на Apple Silicon нет. 2026-10-15: по умолчанию выбирается CoreML, и `gigaam-v3-e2e-ctc` на нём падает при распознавании (`CoreMLExecutionProvider … error code: -1`); с `providers=["CPUExecutionProvider"]` работает. Для этапа 6 провайдер выбирать явно |
 | Smart Turn v3 | https://huggingface.co/pipecat-ai/smart-turn-v3 | BSD-2 |
+| Smart Turn v3.2 (ядро) | https://huggingface.co/pipecat-ai/smart-turn-v3/blob/f766f81d3cfdf7737ac64aad813d91bbfd56bf93/smart-turn-v3.2-cpu.onnx · https://github.com/pipecat-ai/smart-turn (`inference.py`) | Проверено 2026-10-17 по HF API: ревизия `f766f81d3cfdf7737ac64aad813d91bbfd56bf93`, файл `smart-turn-v3.2-cpu.onnx`, лицензия BSD-2. Вход — последние ≤ 8 с моно 16 кГц через `WhisperFeatureExtractor(chunk_length=8)` (`transformers`), тензор `input_features`; выход — вероятность завершённости хода, порог 0,5. Грузится `hf_hub_download` с закреплённой ревизией |
+| Silero VAD ONNX (ядро) | https://github.com/snakers4/silero-vad/blob/v6.2.3/src/silero_vad/data/silero_vad.onnx | Проверено 2026-10-17: тег `v6.2.3` (та же версия, что `silero-vad==6.2.3` в группе `data`), файл 2 327 524 байт. В ядре — через `onnxruntime` без torch: окна по 512 сэмплов 16 кГц, контекст 64 сэмпла, состояние `state` (2×1×128) своё у каждого участника |
 | Pipecat | https://docs.pipecat.ai · https://github.com/pipecat-ai/pipecat | `pipecat-ai 1.12.0`, Python ≥ 3.11 |
 
 ## LLM
@@ -34,6 +36,7 @@
 | Qwen3.5-4B | https://huggingface.co/Qwen/Qwen3.5-4B | Apache 2.0 |
 | GGUF-кванты | https://huggingface.co/unsloth/Qwen3.5-4B-GGUF | Есть (официального `Qwen/Qwen3.5-4B-GGUF` нет) |
 | llama.cpp | https://github.com/ggml-org/llama.cpp | `llama-cpp-python 0.3.36` на PyPI |
+| `llama-server` (ядро) | https://github.com/ggml-org/llama.cpp/tree/master/tools/server | Проверено 2026-10-17 по `llama-server --help` (llama.cpp 0.6.0, Homebrew, build 11429): `--reasoning [on\|off\|auto]` выключает рассуждения в чат-шаблоне; `-c` — окно контекста; эндпоинты `/health`, `/v1/chat/completions` (`stream: true`, SSE; `chat_template_kwargs` в запросе), `/tokenize`, `/apply-template`. Клиент ядра — `httpx` 0.28.1 |
 
 ## Голос (TTS)
 
@@ -55,6 +58,7 @@
 | Что | Ссылка | Проверено 2026-10-14 |
 |---|---|---|
 | RUAccent | https://github.com/Den4ikAI/ruaccent | `1.5.8.3` |
+| `num2words` | https://pypi.org/project/num2words/ · https://github.com/savoirfairelinux/num2words | Проверено 2026-10-17: `0.5.14`, `num2words(n, lang="ru")`. Числа не склоняет: только именительный падеж («в 2026 году» → «в две тысячи двадцать шесть году»), поэтому в ядре — страховка после правила в промпте |
 
 ## Политика Диалога
 

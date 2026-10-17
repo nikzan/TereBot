@@ -3,6 +3,8 @@
 Запуск — в группе uv своего бэкенда (группы взаимоисключающие):
     uv run --group tts-mlx python scripts/bench_voice.py --config 2 [--with-llm]
 
+Адаптер MLX — общий с Клоном (terebot.voice).
+
 Пишет data/bench/<ts>-<id>/: WAV по фразам и results.json. Метрики качества дописывает
 `uv run --group eval python -m terebot.voice_eval <каталог>`.
 """
@@ -29,6 +31,8 @@ from pathlib import Path
 from typing import Protocol
 
 import numpy as np
+
+from terebot.voice import MlxVoice
 
 ROOT = Path(__file__).resolve().parents[1]
 PHRASES = ROOT / "config" / "eval" / "phrases_ru.txt"
@@ -419,68 +423,8 @@ class QwenTorchAdapter(_TorchMps):
         yield wavs[0]
 
 
-class QwenMlxAdapter:
-    """Qwen3-TTS на MLX через mlx-audio, клонирование в режиме ICL со стримингом."""
-
-    streaming = True
-    packages = ("mlx-audio", "mlx", "mlx-metal", "transformers")
-    language = "russian"
-
-    def __init__(self, streaming_interval: float, cache_limit_gb: float | None):
-        self._interval = streaming_interval
-        self._cache_limit_gb = cache_limit_gb
-        self._mx = None
-        self.sample_rate = 0
-
-    def load(self, model: str, precision: str) -> None:
-        import mlx.core as mx
-        from mlx_audio.tts.utils import load
-
-        if self._cache_limit_gb is not None:
-            mx.set_cache_limit(int(self._cache_limit_gb * GB))
-        self._model = load(model)
-        self._mx = mx
-        self.sample_rate = self._model.sample_rate
-
-    def prepare_voice(self, ref_wav: Path, ref_text: str) -> None:
-        from mlx_audio.utils import load_audio
-
-        self._ref_audio = load_audio(str(ref_wav), sample_rate=self.sample_rate)
-        self._ref_text = ref_text
-        # Коды референса mlx-audio кэширует по (ref_text, ref_audio): считаем их здесь, вне замера.
-        # Прогрев — со стримингом, как синтез фраз: без него mlx-audio декодирует коды референса
-        # вместе с новыми одним проходом, и это +4 ГБ к пику.
-        for _ in self._generate("Да.", stream=True):
-            pass
-        # Буферы кодирования референса остаются в кэше MLX (~1,4 ГБ), пока их не освободить.
-        self._mx.clear_cache()
-
-    def _generate(self, text: str, stream: bool):
-        return self._model.generate(
-            text,
-            ref_audio=self._ref_audio,
-            ref_text=self._ref_text,
-            lang_code=self.language,
-            stream=stream,
-            streaming_interval=self._interval,
-        )
-
-    def synthesize(self, text: str) -> Iterator[np.ndarray]:
-        for r in self._generate(text, stream=True):
-            yield np.array(r.audio.astype(self._mx.float32))
-
-    def seed(self, seed: int) -> None:
-        _seed_common(seed)
-        self._mx.random.seed(seed)
-
-    def backend_memory(self) -> tuple[int, str] | None:
-        if self._mx is None:
-            return None
-        # Кэш буферов MLX — тоже память процесса, а get_peak_memory считает только активную.
-        return self._mx.get_active_memory() + self._mx.get_cache_memory(), "mlx.active+cache"
-
-    def backend_peak_memory(self) -> int | None:
-        return self._mx.get_peak_memory() if self._mx else None
+# Qwen3-TTS на MLX — тот же адаптер, что у Клона (terebot.voice), чтобы синтез совпадал.
+QwenMlxAdapter = MlxVoice
 
 
 class ChatterboxAdapter(_TorchMps):

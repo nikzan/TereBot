@@ -42,6 +42,17 @@ eval = [
     "psutil>=7.2.2",
     "soundfile>=0.13.1",
 ]
+# Python-ядро Клона (python -m terebot.core): Голос на MLX, распознавание, VAD, Smart Turn.
+core = [
+    "httpx>=0.28.1",
+    "mlx-audio==0.5.9",
+    "onnx-asr[cpu,hub]==0.12.0",
+    "websockets>=17.2",
+    "psutil>=7.2.2",
+    "num2words>=0.5.14",
+    "scipy>=1.18.1",
+    "soundfile>=0.13.1",
+]
 # Конвейер датасета Голоса (scripts/dataset/), запуск — `uv run --group data`.
 data = [
     "onnx-asr[cpu,hub]==0.12.0",
@@ -71,8 +82,12 @@ addopts = ["-ra", "--strict-markers"]
 
 [tool.uv]
 # qwen-tts держит transformers==4.57.3, mlx-audio — >=5.14, chatterbox-tts — ==5.2.0 и torch==2.6.0
-# (speechbrain требует torch>=2.7.1), поэтому группы не ставятся вместе.
+# (speechbrain требует torch>=2.7.1), поэтому группы не ставятся вместе. Ядро (core) — на mlx-audio,
+# а train — для CUDA-кластера.
 conflicts = [
     [{ group = "tts-qwen-torch" }, { group = "tts-mlx" }, { group = "tts-chatterbox" }],
+    [{ group = "core" }, { group = "tts-qwen-torch" }],
+    [{ group = "core" }, { group = "tts-chatterbox" }],
+    [{ group = "core" }, { group = "train" }],
     [{ group = "eval" }, { group = "tts-chatterbox" }],
 ]
