@@ -1,0 +1,53 @@
+diff --git a/finetuning/sft_12hz.py b/finetuning/sft_12hz.py
+index c1f3f46..569d923 100644
+--- a/finetuning/sft_12hz.py
++++ b/finetuning/sft_12hz.py
+@@ -19,6 +19,7 @@ import os
+ import shutil
+ 
+ import torch
++import torch.nn.functional as F
+ from accelerate import Accelerator
+ from dataset import TTSDataset
+ from qwen_tts.inference.qwen3_tts_model import Qwen3TTSModel
+@@ -86,7 +87,8 @@ def train():
+                 input_text_ids = input_ids[:, :, 0]
+                 input_codec_ids = input_ids[:, :, 1]
+ 
+-                input_text_embedding = model.talker.model.text_embedding(input_text_ids) * text_embedding_mask
++                # alignment: text goes through text_projection, as in generate()
++                input_text_embedding = model.talker.text_projection(model.talker.model.text_embedding(input_text_ids)) * text_embedding_mask
+                 input_codec_embedding = model.talker.model.codec_embedding(input_codec_ids) * codec_embedding_mask
+                 input_codec_embedding[:, 6, :] = speaker_embedding
+ 
+@@ -97,18 +99,25 @@ def train():
+                     codec_i_embedding = codec_i_embedding * codec_mask.unsqueeze(-1)
+                     input_embeddings = input_embeddings + codec_i_embedding
+ 
++                # alignment: the loss function shifts labels itself, so no manual shift (keeps EOS)
+                 outputs = model.talker(
+-                    inputs_embeds=input_embeddings[:, :-1, :],
+-                    attention_mask=attention_mask[:, :-1],
+-                    labels=codec_0_labels[:, 1:],
++                    inputs_embeds=input_embeddings,
++                    attention_mask=attention_mask,
++                    labels=codec_0_labels,
+                     output_hidden_states=True
+                 )
+ 
++                # alignment: sub-talker gets the previous step's state, as past_hidden in generate()
+                 hidden_states = outputs.hidden_states[0][-1]
+-                talker_hidden_states = hidden_states[codec_mask[:, :-1]]
++                talker_hidden_states = hidden_states[:, :-1][codec_mask[:, 1:]]
+                 talker_codec_ids = codec_ids[codec_mask]
+ 
+-                sub_talker_logits, sub_talker_loss = model.talker.forward_sub_talker_finetune(talker_codec_ids, talker_hidden_states)
++                sub_talker_logits, _ = model.talker.forward_sub_talker_finetune(talker_codec_ids, talker_hidden_states)
++                # alignment: logits are already position-aligned, labels are not shifted again
++                sub_talker_loss = F.cross_entropy(
++                    sub_talker_logits.reshape(-1, sub_talker_logits.shape[-1]).float(),
++                    talker_codec_ids[:, 1:].reshape(-1),
++                )
+ 
+                 loss = outputs.loss + 0.3 * sub_talker_loss
+ 

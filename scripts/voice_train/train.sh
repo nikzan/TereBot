@@ -50,6 +50,30 @@ export HF_HOME=${HF_HOME:-$ROOT/data/hf}
 
 [[ -x $ROOT/.venv/bin/python ]] || { echo "нет .venv — сначала uv sync --group train" >&2; exit 1; }
 
+# Патч выравнивания цели обучения к sft_12hz.py (README, «Патч к QwenLM»). Чужие правки в vendor
+# скрипт не стирает: при несовпадении обучение не начинается.
+PATCH=$ROOT/scripts/voice_train/patches/sft_12hz-alignment.patch
+if git -C "$VENDOR" apply --reverse --check "$PATCH" 2>/dev/null; then
+  echo "патч выравнивания уже наложен"
+elif git -C "$VENDOR" apply --check "$PATCH" 2>/dev/null; then
+  git -C "$VENDOR" apply "$PATCH"
+  echo "патч выравнивания наложен"
+else
+  echo "код QwenLM в $VENDOR не совпадает с ожидаемым: патч $PATCH не накладывается и не наложен." >&2
+  echo "нужен чистый клон на коммите из docs/REFERENCES.md (git -C $VENDOR checkout .)" >&2
+  exit 1
+fi
+PATCH_SHA256=$(sha256sum "$PATCH" 2>/dev/null || shasum -a 256 "$PATCH")
+PATCH_SHA256=${PATCH_SHA256%% *}
+
+# Коммит нашего репозитория: REPO_COMMIT, заданная при rsync с Mac, иначе HEAD клона, если дерево
+# чистое. Код на кластер приходит rsync-ом поверх клона, поэтому HEAD с правками ничего не говорит.
+if [[ -z ${REPO_COMMIT:-} && $(git -C "$ROOT" rev-parse --show-toplevel 2>/dev/null) == "$ROOT" \
+      && -z $(git -C "$ROOT" status --porcelain 2>/dev/null) ]]; then
+  REPO_COMMIT=$(git -C "$ROOT" rev-parse HEAD)
+fi
+REPO_COMMIT=${REPO_COMMIT:-}
+
 # Интерпретатор venv под обезличенным именем: так процесс выглядит в nvidia-smi и htop.
 # Симлинк лежит в .venv/bin рядом с pyvenv.cfg, поэтому venv находится как обычно.
 PROC_NAME=${PROC_NAME:-qwen-lora}
@@ -68,7 +92,7 @@ if [[ -n $LIMIT ]]; then
 fi
 CODES=$RUN_DIR/train.codes.jsonl
 
-export RUN_DIR EPOCHS BATCH_SIZE LR LIMIT VENDOR BASE_REPO TOKENIZER SPEAKER
+export RUN_DIR EPOCHS BATCH_SIZE LR LIMIT VENDOR BASE_REPO TOKENIZER SPEAKER PATCH_SHA256 REPO_COMMIT
 "${PY[@]}" - <<'EOF'
 import json, os, subprocess
 from datetime import datetime
@@ -95,6 +119,8 @@ run["train"] = {
     "qwen3_tts_commit": subprocess.check_output(
         ["git", "-C", e["VENDOR"], "rev-parse", "HEAD"], text=True
     ).strip(),
+    "qwen3_tts_patch": {"sft_12hz-alignment.patch": e["PATCH_SHA256"]},
+    "repo_commit": e["REPO_COMMIT"] or None,
     "versions": {p: version(p) for p in (
         "qwen-tts", "transformers", "accelerate", "torch", "torchaudio", "kernels"
     )},

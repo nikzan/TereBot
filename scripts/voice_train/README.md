@@ -19,6 +19,34 @@ git -C data/vendor/Qwen3-TTS checkout <коммит из docs/REFERENCES.md>
 
 Процессы на GPU запускаются интерпретатором venv под обезличенным именем `qwen-lora` (симлинк `.venv/bin/qwen-lora`, имя меняет `PROC_NAME`), а не через `uv run`: так они выглядят в `nvidia-smi` и `htop`. Имя каталога репозитория на кластере тоже видно в командной строке, поэтому клонируйте его под нейтральным именем, например `git clone <репозиторий> lora`.
 
+## Работа на кластере `lab-code62`
+
+Кластер общий, работа не выходит за каталог `/home/nikzan/qwen`. Репозиторий — `/home/nikzan/qwen/lora`, кэши uv — `/home/nikzan/qwen/.cache/`.
+
+- **Только GPU 1.** На GPU 0 чужой процесс: его не трогаем и карту не занимаем. Все GPU-запуски — с `CUDA_VISIBLE_DEVICES=1`.
+- **Окружение.** Перед `uv` в каждой новой оболочке:
+
+  ```bash
+  export PATH=$HOME/.local/bin:$PATH UV_CACHE_DIR=/home/nikzan/qwen/.cache/uv UV_PYTHON_INSTALL_DIR=/home/nikzan/qwen/.cache/uv-python
+  ```
+
+  `train.sh` сам задаёт `HF_HOME=data/hf`. Для ручных запусков (`check_objective.py`, `check_stop.py`) его нужно задать самому: `HF_HOME=$PWD/data/hf`.
+- **Имя процесса.** GPU-процессы запускаются через `.venv/bin/qwen-lora`, а не через `uv run`. Симлинк создаёт `train.sh`.
+- **Длинные запуски** — через `nohup`, с логом в каталоге прогона:
+
+  ```bash
+  CUDA_VISIBLE_DEVICES=1 nohup scripts/voice_train/train.sh pilot-2026-10-18 > data/voice/pilot-2026-10-18/train.out 2>&1 < /dev/null & disown
+  ```
+
+- **Код переносится с Mac rsync-ом.** Git-клон на кластере есть, но устарел, поэтому коммит передаётся переменной `REPO_COMMIT`. `train.sh` берёт его из этой переменной, а без неё — из `git rev-parse HEAD`, но только при чистом дереве; иначе в `run.json` пишется `null`. С Mac:
+
+  ```bash
+  rsync -a --exclude .venv --exclude data --exclude node_modules --exclude .git ./ lab-code62:/home/nikzan/qwen/lora/
+  echo "REPO_COMMIT=$(git rev-parse HEAD)"
+  ```
+
+  На кластере эту строку ставят перед командой: `REPO_COMMIT=<коммит> CUDA_VISIBLE_DEVICES=1 scripts/voice_train/train.sh …`. Незакоммиченные правки в коммит не попадают: перед прогоном, по которому будут выбирать Голос, закоммитьте код.
+
 `sft_12hz.py` зашивает `attn_implementation="flash_attention_2"`. Пакет `flash-attn` не ставим (на PyPI только исходники): transformers в этом случае сам берёт готовое ядро `kernels-community/flash-attn` с HF через пакет `kernels`, в логе это строка `using kernels-community/flash-attn from the kernels library`. Поэтому в группе `train` закреплён torch 2.11 — под него на хабе есть сборка `torch211-cxx11-cu130`.
 
 ## Прогон
@@ -62,6 +90,41 @@ data/voice/<прогон>/
 
 Чекпоинт вызывается через `generate_custom_voice(text, speaker="prototype")` без референса. Невыбранные чекпоинты удаляйте после оценки: 10 эпох — это ~45 ГБ.
 
-## Известная проблема
+## Проверки
 
-На закреплённом коммите QwenLM `sft_12hz.py` учит модель с ошибками выравнивания меток (QwenLM/Qwen3-TTS#371, PR #278 и #384): чекпоинты не выдают EOS и синтезируют до `max_new_tokens`. Воспроизведено в пробном прогоне 2026-10-17 на всех эпохах. Пока это не исправлено, чекпоинты непригодны для оценки; решение — change `fix-voice-sft-alignment`.
+**Цель обучения без обучения.** Запускается один раз на прогон, на кодах из `train.codes.jsonl`. Нужна после смены коммита QwenLM или патча.
+
+```bash
+CUDA_VISIBLE_DEVICES=1 HF_HOME=$PWD/data/hf .venv/bin/qwen-lora scripts/voice_train/check_objective.py pilot-2026-10-17
+```
+
+Скрипт печатает CE talker и sub-talker на Base для исходной и исправленной цели и `ln(2048)` для сравнения. Если исправленная цель не ниже случайной и исходной, он завершается с ошибкой: тогда обучать нельзя.
+
+**Остановка после обучения.** Каждый чекпоинт и Base синтезируют фразы из `config/eval/stop_phrases_ru.txt` с лимитом 400 токенов:
+
+```bash
+CUDA_VISIBLE_DEVICES=1 HF_HOME=$PWD/data/hf .venv/bin/qwen-lora scripts/voice_train/check_stop.py pilot-2026-10-18
+```
+
+Скрипт печатает таблицу длительностей; `*` — синтез дошёл до лимита. Чекпоинт непригоден, если хотя бы на одной фразе он не остановился сам или длительность вне 0,5–2× от Base. Такой чекпоинт на оценку похожести и CER не идёт. WAV и `summary.json` — в `data/voice/<прогон>/stop_check/`, `--epochs 0 4 9` ограничивает набор эпох.
+
+## Патч к QwenLM
+
+На закреплённом коммите `sft_12hz.py` учит модель другой задаче, чем та, которую решает синтез (QwenLM/Qwen3-TTS#371 и #337, PR #278 и #384). Без исправления чекпоинты не выдают EOS и синтезируют до `max_new_tokens`: так было в пробном прогоне 2026-10-17 на всех эпохах. Разбор — в [design.md change `fix-voice-sft-alignment`](../../openspec/changes/fix-voice-sft-alignment/design.md).
+
+Исправление — [patches/sft_12hz-alignment.patch](patches/sft_12hz-alignment.patch), правит только `finetuning/sft_12hz.py`:
+- текст проходит `text_projection`;
+- talker получает всю последовательность с `labels=codec_0_labels`, единственный сдвиг делает loss, EOS остаётся в цели;
+- sub-talker получает состояние предыдущего шага (`hidden_states[:, :-1]` по `codec_mask[:, 1:]`);
+- loss sub-talker считается `cross_entropy` по логитам без второго сдвига.
+
+Пакет `qwen-tts` в `.venv` не правится.
+
+`train.sh` перед обучением проверяет клон в `data/vendor/Qwen3-TTS`:
+- патч уже наложен — пишет «патч выравнивания уже наложен» и идёт дальше;
+- клон чистый — накладывает патч;
+- иначе — ошибка «код QwenLM … не совпадает с ожидаемым», обучение не начинается.
+
+Чужие правки скрипт не стирает: сброс — `git -C data/vendor/Qwen3-TTS checkout .`. В `run.json` пишутся `train.qwen3_tts_patch` (sha256 файла патча) и `train.repo_commit`.
+
+**Когда удалить патч.** Когда upstream вольёт эквивалентное исправление (следим за #278 и #384), закреплённый коммит в `docs/REFERENCES.md` переводится на новый, а патч удаляется. После этого `check_objective.py` и `check_stop.py` повторяются на пробном запуске.

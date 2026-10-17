@@ -18,7 +18,7 @@
 ## 4. Оценка чекпоинтов
 
 - [ ] 4.1 Добавить в `terebot.voice_eval` параметр эталонов `--refs` (каталог WAV или `holdout.jsonl`), опорный уровень — по тем же эталонам; проверка: прогон без `--refs` на каталоге бенчмарка этапа 3 даёт те же цифры, что в `docs/benchmarks/voice-zero-shot.md`
-- [ ] 4.2 Реализовать `scripts/voice_train/synth_eval.py`: набор «тексты holdout + `phrases_ru.txt`» для чекпоинта (`generate_custom_voice`) и для zero-shot (`generate_voice_clone` с тем же референсом), сид 0, вывод в формате `results.json` бенчмарка; проверка: [владелец] запуск на `checkpoint-epoch-0` из 3.2 на кластере даёт каталог, который принимает `python -m terebot.voice_eval --refs`
+- [ ] 4.2 Реализовать `scripts/voice_train/synth_eval.py`: набор «тексты holdout + `phrases_ru.txt`» для чекпоинта (`generate_custom_voice`) и для zero-shot (`generate_voice_clone` с тем же референсом), сид 0, вывод в формате `results.json` бенчмарка; проверка: [владелец] запуск на `checkpoint-epoch-0` прогона `smoke-fix` (change `fix-voice-sft-alignment`, задача 3.2) на кластере даёт каталог, который принимает `python -m terebot.voice_eval --refs`
 - [ ] 4.3 Реализовать сводную таблицу чекпоинтов и правило выбора из design.md (логика в `src/terebot/voice_train/`, команда `scripts/voice_train/curve.py`); проверка: pytest на синтетических `results.json` — таблица отсортирована по эпохам, правило выбирает раннюю эпоху плато и отбрасывает эпоху с выросшим CER
 
 ## 5. Голос на Mac

@@ -32,6 +32,8 @@
 ### Код дообучения QwenLM — по закреплённому коммиту, не копией
 Скрипты `prepare_data.py`, `sft_12hz.py`, `dataset.py` не входят в пакет `qwen-tts`, они лежат в каталоге `finetuning/` репозитория. На кластере репозиторий клонируется в `data/vendor/Qwen3-TTS` на коммите, записанном в `docs/REFERENCES.md`, а наши скрипты вызывают его файлы. Копию в наш репозиторий не кладём: при обновлении upstream придётся сливать её руками. Хеш коммита пишется в параметры каждого прогона.
 
+Исключение — патч выравнивания цели обучения [`scripts/voice_train/patches/sft_12hz-alignment.patch`](../../../scripts/voice_train/patches/sft_12hz-alignment.patch) из change `fix-voice-sft-alignment`: на закреплённом коммите `sft_12hz.py` учит модель не той задаче, и чекпоинты не заканчивают фразу. `train.sh` накладывает патч на клон перед каждым обучением и пишет его sha256 в `run.json`; если патч не накладывается, обучение не начинается. Патч удаляется, когда upstream вольёт эквивалентное исправление (PR #278 или #384).
+
 Зависимости — группа uv `train`: `qwen-tts==0.1.1` (тянет `transformers==4.57.3` и `accelerate==1.12.0`, пины из REFERENCES) и `soundfile`. В `[tool.uv].conflicts` группа `train` встаёт рядом с `tts-mlx` и `tts-chatterbox`, как `tts-qwen-torch`.
 
 ### Раскладка кода
