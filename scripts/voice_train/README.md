@@ -108,6 +108,14 @@ CUDA_VISIBLE_DEVICES=1 HF_HOME=$PWD/data/hf .venv/bin/qwen-lora scripts/voice_tr
 
 Скрипт печатает таблицу длительностей; `*` — синтез дошёл до лимита. Чекпоинт непригоден, если хотя бы на одной фразе он не остановился сам или длительность вне 0,5–2× от Base. Такой чекпоинт на оценку похожести и CER не идёт. WAV и `summary.json` — в `data/voice/<прогон>/stop_check/`, `--epochs 0 4 9` ограничивает набор эпох.
 
+**Кривая на отложенной выборке.** CE исправленной цели на holdout датасета и на стольких же клипах train, для Base и каждого чекпоинта. Коды holdout готовятся при первом запуске:
+
+```bash
+CUDA_VISIBLE_DEVICES=1 HF_HOME=$PWD/data/hf .venv/bin/qwen-lora scripts/voice_train/check_holdout.py pilot-2026-10-18
+```
+
+Рост CE на holdout при падении на train — признак переобучения. Чекпоинт по этой кривой не выбирают: для этого есть похожесть и CER.
+
 ## Патч к QwenLM
 
 На закреплённом коммите `sft_12hz.py` учит модель другой задаче, чем та, которую решает синтез (QwenLM/Qwen3-TTS#371 и #337, PR #278 и #384). Без исправления чекпоинты не выдают EOS и синтезируют до `max_new_tokens`: так было в пробном прогоне 2026-10-17 на всех эпохах. Разбор — в [design.md change `fix-voice-sft-alignment`](../../openspec/changes/archive/2026-10-18-fix-voice-sft-alignment/design.md).

@@ -37,7 +37,12 @@ def ce_sum(logits: torch.Tensor, labels: torch.Tensor) -> tuple[float, int]:
 
 
 @torch.no_grad()
-def batch_losses(model, batch: dict) -> dict[tuple[str, str], tuple[float, int]]:
+def batch_losses(
+    model, batch: dict, speaker: torch.Tensor | None = None,
+    objectives: tuple[str, ...] = ("исходная", "исправленная"),
+) -> dict[tuple[str, str], tuple[float, int]]:
+    """Суммы CE по целям; speaker — готовый эмбеддинг говорящего вместо speaker_encoder
+    (у чекпоинта custom_voice это строка его ID в codec_embedding)."""
     dev = model.device
     batch = {k: v.to(dev) for k, v in batch.items()}
     talker = model.talker
@@ -45,7 +50,8 @@ def batch_losses(model, batch: dict) -> dict[tuple[str, str], tuple[float, int]]
     codec_mask = batch["codec_mask"]
     labels = batch["codec_0_labels"]
 
-    speaker = model.speaker_encoder(batch["ref_mels"].to(model.dtype))
+    if speaker is None:
+        speaker = model.speaker_encoder(batch["ref_mels"].to(model.dtype))
     text_ids = batch["input_ids"][:, :, 0]
     codec_in = batch["input_ids"][:, :, 1]
     codec_emb = talker.model.codec_embedding(codec_in) * batch["codec_embedding_mask"]
@@ -58,7 +64,7 @@ def batch_losses(model, batch: dict) -> dict[tuple[str, str], tuple[float, int]]
     frames = codec_ids[codec_mask]
 
     out = {}
-    for objective in ("исходная", "исправленная"):
+    for objective in objectives:
         if objective == "исходная":
             embeds = (text_raw * text_mask + codec_emb)[:, :-1]
             attn = batch["attention_mask"][:, :-1]
