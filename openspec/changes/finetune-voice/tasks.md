@@ -2,18 +2,18 @@
 
 ## 1. Окружение обучения
 
-- [ ] 1.1 Добавить группу uv `train` (`qwen-tts==0.1.1`, `soundfile`) и её конфликты с `tts-mlx` и `tts-chatterbox`; закрепить коммит QwenLM/Qwen3-TTS для `finetuning/` в `docs/REFERENCES.md` вместе с фактами из design.md (custom_voice, референс 24 кГц, ID говорящего 3000); проверка: `uv lock` проходит, `uv sync --group train` на Mac разрешает зависимости
-- [ ] 1.2 [владелец] Развернуть на кластере репозиторий, `uv sync --group train`, клон QwenLM/Qwen3-TTS в `data/vendor/Qwen3-TTS` на закреплённом коммите, перенести `data/dataset/` через rsync; проверка: `uv run --group train python -c "import torch; print(torch.cuda.is_available(), torch.cuda.get_device_name(0))"` печатает `True` и имя GPU
+- [x] 1.1 Добавить группу uv `train` (`qwen-tts==0.1.1`, `soundfile`) и её конфликты с `tts-mlx` и `tts-chatterbox`; закрепить коммит QwenLM/Qwen3-TTS для `finetuning/` в `docs/REFERENCES.md` вместе с фактами из design.md (custom_voice, референс 24 кГц, ID говорящего 3000); проверка: `uv lock` проходит, `uv sync --group train` на Mac разрешает зависимости
+- [x] 1.2 [владелец] Развернуть на кластере репозиторий, `uv sync --group train`, клон QwenLM/Qwen3-TTS в `data/vendor/Qwen3-TTS` на закреплённом коммите, перенести `data/dataset/` через rsync; проверка: `uv run --group train python -c "import torch; print(torch.cuda.is_available(), torch.cuda.get_device_name(0))"` печатает `True` и имя GPU
 
 ## 2. Подготовка данных
 
-- [ ] 2.1 Реализовать в `src/terebot/voice_train/` манифест → обучающий JSONL и выбор референса (по умолчанию — самый длинный сегмент train, `--ref` с отказом для holdout); проверка: pytest — ни один `seg_id` из holdout не попадает в набор, у всех примеров один референс, повторная подготовка даёт идентичный файл
-- [ ] 2.2 Реализовать `scripts/voice_train/prepare.py`: ресемплинг 48 → 24 кГц в `data/voice/<прогон>/audio/`, `train.jsonl`, `run.json` с данными прогона; проверка: запуск на текущем манифесте — все WAV в 24 кГц, число строк равно числу сегментов train, `run.json` содержит минуты, референс и метку прогона
+- [x] 2.1 Реализовать в `src/terebot/voice_train/` манифест → обучающий JSONL и выбор референса (по умолчанию — самый длинный сегмент train, `--ref` с отказом для holdout); проверка: pytest — ни один `seg_id` из holdout не попадает в набор, у всех примеров один референс, повторная подготовка даёт идентичный файл
+- [x] 2.2 Реализовать `scripts/voice_train/prepare.py`: ресемплинг 48 → 24 кГц в `data/voice/<прогон>/audio/`, `train.jsonl`, `run.json` с данными прогона; проверка: запуск на текущем манифесте — все WAV в 24 кГц, число строк равно числу сегментов train, `run.json` содержит минуты, референс и метку прогона
 
 ## 3. Обучение на кластере
 
-- [ ] 3.1 Написать `scripts/voice_train/train.sh`: `prepare_data.py` → `sft_12hz.py` с параметрами из design.md, `--speaker_name prototype`, дописывание гиперпараметров, коммита и версий пакетов в `run.json`; описать запуск в `scripts/voice_train/README.md`; проверка: `bash -n` и сухой прогон с `--help` скриптов QwenLM на Mac
-- [ ] 3.2 [владелец] Пробный запуск `train.sh` на 10 примерах и 1 эпохе на кластере; проверка: появился `checkpoint-epoch-0`, в его `config.json` `tts_model_type = custom_voice` и говорящий `prototype` в `spk_id`; при ошибке внимания или памяти — остановиться и передать лог агенту
+- [x] 3.1 Написать `scripts/voice_train/train.sh`: `prepare_data.py` → `sft_12hz.py` с параметрами из design.md, `--speaker_name prototype`, дописывание гиперпараметров, коммита и версий пакетов в `run.json`; описать запуск в `scripts/voice_train/README.md`; проверка: `bash -n` и сухой прогон с `--help` скриптов QwenLM на Mac
+- [x] 3.2 [владелец] Пробный запуск `train.sh` на 10 примерах и 1 эпохе на кластере; проверка: появился `checkpoint-epoch-0`, в его `config.json` `tts_model_type = custom_voice` и говорящий `prototype` в `spk_id`; при ошибке внимания или памяти — остановиться и передать лог агенту
 
 ## 4. Оценка чекпоинтов
 

@@ -15,7 +15,18 @@ dev = [
     "ruff>=0.17.0",
 ]
 # Зависимости для обучения на кластере (scripts/), ставятся через `uv sync --group train`.
-train = []
+train = [
+    "qwen-tts==0.1.1",
+    "transformers==4.57.3",
+    # sft_12hz.py требует flash_attention_2; без пакета flash-attn transformers берёт ядро
+    # kernels-community/flash-attn с HF через `kernels`: 0.9 не понимает новую раскладку сборок
+    # на хабе, 0.13+ требует huggingface-hub>=1.3, а transformers 4.57 — <1.0. Готовые
+    # сборки там — до torch 2.12, а torchaudio 2.11.0 из qwen-tts собран под torch 2.11.
+    "torch==2.11.*; sys_platform == 'linux'",
+    "kernels==0.12.3; sys_platform == 'linux'",
+    "scipy>=1.18.1",
+    "soundfile>=0.13.1",
+]
 # Бэкенды Голоса для бенчмарка (scripts/bench_voice.py). Взаимоисключающие, запуск — `uv run --group <g>`.
 tts-qwen-torch = [
     "qwen-tts==0.1.1",
@@ -89,5 +100,7 @@ conflicts = [
     [{ group = "core" }, { group = "tts-qwen-torch" }],
     [{ group = "core" }, { group = "tts-chatterbox" }],
     [{ group = "core" }, { group = "train" }],
+    [{ group = "train" }, { group = "tts-mlx" }],
+    [{ group = "train" }, { group = "tts-chatterbox" }],
     [{ group = "eval" }, { group = "tts-chatterbox" }],
 ]
