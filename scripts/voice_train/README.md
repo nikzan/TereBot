@@ -32,10 +32,10 @@ git -C data/vendor/Qwen3-TTS checkout <коммит из docs/REFERENCES.md>
 
   `train.sh` сам задаёт `HF_HOME=data/hf`. Для ручных запусков (`check_objective.py`, `check_stop.py`) его нужно задать самому: `HF_HOME=$PWD/data/hf`.
 - **Имя процесса.** GPU-процессы запускаются через `.venv/bin/qwen-lora`, а не через `uv run`. Симлинк создаёт `train.sh`.
-- **Длинные запуски** — через `nohup`, с логом в каталоге прогона:
+- **Длинные запуски** — через `setsid nohup`, с логом в каталоге прогона. Так процесс переживает выход из ssh, и `ssh lab-code62 '…'` не ждёт его завершения:
 
   ```bash
-  CUDA_VISIBLE_DEVICES=1 nohup scripts/voice_train/train.sh pilot-2026-10-18 > data/voice/pilot-2026-10-18/train.out 2>&1 < /dev/null & disown
+  (REPO_COMMIT=<коммит> CUDA_VISIBLE_DEVICES=1 setsid nohup scripts/voice_train/train.sh pilot-2026-10-18 > data/voice/pilot-2026-10-18/train.out 2>&1 < /dev/null &)
   ```
 
 - **Код переносится с Mac rsync-ом.** Git-клон на кластере есть, но устарел, поэтому коммит передаётся переменной `REPO_COMMIT`. `train.sh` берёт его из этой переменной, а без неё — из `git rev-parse HEAD`, но только при чистом дереве; иначе в `run.json` пишется `null`. С Mac:
