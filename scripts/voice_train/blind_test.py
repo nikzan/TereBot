@@ -12,17 +12,29 @@ WAV 48 кГц 16 бит без метаданных в data/voice/blind_tests/<�
 лист ответов answers.csv. Ключ — key.json рядом с pairs/, судьям его не отдавать. Повторный
 prepare с тем же --name (например, с другой эпохой) заменяет тест целиком.
 
-score: ответ судьи — копия answers.csv, в колонке synthetic — A или B; имя судьи — из имени
-файла после «answers-». Итог дописывается в docs/benchmarks/voice-finetune.md.
+listen — проведение теста с одним компьютером (например, стрим экрана в Discord): пары по
+очереди проигрываются через afplay, ведущий нажимает A или B за судью, ответ сразу пишется
+в data/voice/blind_tests/<имя>/answers-<судья>.csv. Ключ не читается и на экран ничего
+не выдаёт; прерванный тест продолжается с первой пары без ответа.
+
+    uv run --group data python scripts/voice_train/blind_test.py listen --name final-e8 --judge аня
+
+score: ответ судьи — копия answers.csv или файл listen, в колонке synthetic — A или B; имя
+судьи — из имени файла после «answers-». Итог дописывается в docs/benchmarks/voice-finetune.md.
 """
 
 import argparse
 import csv
 import datetime as dt
 import json
+import os
 import shutil
 import subprocess
+import sys
 import tempfile
+import termios
+import time
+import tty
 from dataclasses import asdict
 from pathlib import Path
 
@@ -129,6 +141,83 @@ def read_answers(path: Path) -> dict[str, str]:
         return {r["pair"].strip(): (r.get("synthetic") or "") for r in csv.DictReader(f)}
 
 
+KEYS_A, KEYS_B = set("aAфФ"), set("bBиИ")
+KEYS_QUIT = set("qQйЙ\x03")
+LEFT, RIGHT, BACKSPACE = "\x1b[D", "\x1b[C", "\x7f"
+
+
+def read_key() -> str:
+    """Одна клавиша без Enter; в русской раскладке — те же физические клавиши."""
+    fd = sys.stdin.fileno()
+    old = termios.tcgetattr(fd)
+    try:
+        tty.setraw(fd)
+        return os.read(fd, 8).decode("utf-8", "ignore")
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old)
+
+
+def play(path: Path, label: str) -> None:
+    print(f"  ▶ {label}", end="", flush=True)
+    subprocess.run(["afplay", str(path)], check=True)
+    print("\r" + " " * 10 + "\r", end="", flush=True)
+
+
+def listen(args: argparse.Namespace) -> None:
+    test_dir = args.out / args.name
+    pairs_dir = test_dir / "pairs"
+    template = pairs_dir / "answers.csv"
+    if not template.exists():
+        raise SystemExit(f"нет {template} — сначала prepare")
+    pairs = list(read_answers(template))
+    out = test_dir / f"answers-{args.judge}.csv"
+    answers = {p: "" for p in pairs} | (read_answers(out) if out.exists() else {})
+
+    def save() -> None:
+        rows = "".join(f"{p},{answers[p]}\n" for p in pairs)
+        write_text(out, "pair,synthetic\n" + rows)
+
+    i = next((k for k, p in enumerate(pairs) if not answers[p]), len(pairs))
+    autoplay = True
+    while i < len(pairs):
+        p = pairs[i]
+        done = sum(bool(v) for v in answers.values())
+        print("\033[2J\033[H", end="")
+        print(f"Слепой тест · судья {args.judge} · пара {p} из {len(pairs)} · отвечено {done}\n")
+        print("Где синтез?  A / B — ответ    1 / 2 — послушать A / B    пробел — обе")
+        print("← назад    → пропустить    q — выход (ответы сохранены)\n")
+        if answers[p]:
+            print(f"  ответ: {answers[p]}")
+        if autoplay:
+            play(pairs_dir / f"{p}-A.wav", "A")
+            time.sleep(0.7)
+            play(pairs_dir / f"{p}-B.wav", "B")
+        autoplay = False
+        key = read_key()
+        if key in KEYS_A or key in KEYS_B:
+            answers[p] = "A" if key in KEYS_A else "B"
+            save()
+            i, autoplay = i + 1, True
+        elif key == "1":
+            play(pairs_dir / f"{p}-A.wav", "A")
+        elif key == "2":
+            play(pairs_dir / f"{p}-B.wav", "B")
+        elif key == " ":
+            autoplay = True
+        elif key in (LEFT, BACKSPACE):
+            i, autoplay = max(0, i - 1), True
+        elif key == RIGHT:
+            i, autoplay = i + 1, True
+        elif key in KEYS_QUIT:
+            break
+    save()
+    done = sum(bool(v) for v in answers.values())
+    print("\033[2J\033[H", end="")
+    print(f"Судья {args.judge}: отвечено {done} из {len(pairs)}. Ответы — {out}")
+    if done < len(pairs):
+        print("Продолжить — та же команда, начнётся с первой пары без ответа.")
+
+
 def score_cmd(args: argparse.Namespace) -> None:
     test_dir = args.out / args.name
     key = json.loads((test_dir / "key.json").read_text(encoding="utf-8"))
@@ -179,8 +268,12 @@ def main() -> None:
     sc.add_argument("answers", nargs="+", type=Path, help="answers-<судья>.csv")
     sc.add_argument("--no-report", action="store_true", help="не дописывать итог в отчёт")
 
+    li = sub.add_parser("listen", help="провести тест: пары по очереди, ответ клавишей A/B")
+    li.add_argument("--name", required=True)
+    li.add_argument("--judge", required=True, help="имя судьи: файл answers-<судья>.csv")
+
     args = ap.parse_args()
-    prepare(args) if args.cmd == "prepare" else score_cmd(args)
+    {"prepare": prepare, "score": score_cmd, "listen": listen}[args.cmd](args)
 
 
 if __name__ == "__main__":

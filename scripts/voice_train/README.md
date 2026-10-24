@@ -166,7 +166,15 @@ uv run --group tts-mlx --group data python scripts/voice_train/blind_test.py pre
 - `data/voice/blind_tests/<имя>/pairs/` — `NN-A.wav`, `NN-B.wav` и `answers.csv`: эту папку отдают судьям. Ключ `key.json` лежит уровнем выше, судьям его не показывать.
 - Другая эпоха — тот же `--name` с другим `--model`: тест подготовится заново, а его сегменты в журнале заменятся. Новое имя — новые сегменты.
 
-Каждый судья заполняет копию `answers.csv` (колонка `synthetic`: `A` или `B`) и присылает её как `answers-<имя>.csv`. Подсчёт и запись итога в `docs/benchmarks/voice-finetune.md`:
+**Тест по стриму экрана** (один компьютер, судьи слушают в Discord) — ответы вводит ведущий:
+
+```bash
+uv run --group data python scripts/voice_train/blind_test.py listen --name final-e8 --judge аня
+```
+
+Пара проигрывается сама: A, пауза, B. Ведущий нажимает `A` или `B` (в русской раскладке — те же клавиши), ответ сразу пишется в `data/voice/blind_tests/final-e8/answers-аня.csv`, начинается следующая пара. `1` / `2` — переслушать A / B, пробел — обе, `←` — назад (ответ можно исправить), `q` — выход; повторный запуск продолжит с первой пары без ответа. Нажатия во время звука не засчитываются — отвечать после. Ключ не читается, на экране только номер пары и ответ судьи. Звук в стриме идёт через ещё один кодек Discord — одинаково для A и B. Проверьте до теста, что Discord на macOS передаёт звук стрима.
+
+Или по файлам: каждый судья заполняет копию `answers.csv` (колонка `synthetic`: `A` или `B`) и присылает её как `answers-<имя>.csv`. Подсчёт и запись итога в `docs/benchmarks/voice-finetune.md`:
 
 ```bash
 uv run --group data python scripts/voice_train/blind_test.py score --name final-e8 data/voice/blind_tests/final-e8/answers-*.csv
