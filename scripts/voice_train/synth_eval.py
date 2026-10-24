@@ -95,6 +95,11 @@ def main() -> None:
     ap.add_argument("--dataset", type=Path, default=DATASET_DIR, help="корень аудио для --holdout")
     ap.add_argument("--max-new-tokens", type=int, default=400)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument(
+        "--claim",
+        action="store_true",
+        help="общая очередь для нескольких процессов: модель, взятую другим, пропустить",
+    )
     args = ap.parse_args()
 
     run_dir = VOICE_DIR / args.run
@@ -137,6 +142,12 @@ def main() -> None:
         "gpu": torch.cuda.get_device_name(0),
     }
     for name, path in jobs:
+        if args.claim:
+            # mkdir атомарен: модель берёт ровно один из процессов, запущенных с --claim.
+            try:
+                (run_dir / "eval" / f".{name}.claim").mkdir(parents=True)
+            except FileExistsError:
+                continue
         print(name, flush=True)
         tts = load(path)
         out = run_dir / "eval" / name

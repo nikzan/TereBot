@@ -44,6 +44,8 @@ TOKENIZER=Qwen/Qwen3-TTS-Tokenizer-12Hz
 SPEAKER=prototype
 # Кэш моделей — внутри репозитория, а не в общем ~/.cache.
 export HF_HOME=${HF_HOME:-$ROOT/data/hf}
+# Через tee Python пишет блоками, и loss появляется в train.log рывками.
+export PYTHONUNBUFFERED=1
 
 [[ -f $RUN_DIR/train.jsonl ]] || { echo "нет $RUN_DIR/train.jsonl — сначала prepare.py" >&2; exit 1; }
 [[ -f $VENDOR/finetuning/sft_12hz.py ]] || { echo "нет $VENDOR — клонируйте QwenLM/Qwen3-TTS" >&2; exit 1; }

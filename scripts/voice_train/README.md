@@ -129,6 +129,18 @@ CUDA_VISIBLE_DEVICES=1 HF_HOME=$PWD/data/hf .venv/bin/qwen-lora scripts/voice_tr
 CUDA_VISIBLE_DEVICES=1 HF_HOME=$PWD/data/hf .venv/bin/qwen-lora scripts/voice_train/synth_eval.py <прогон> --epochs 3 5 --zero-shot
 ```
 
+Один процесс синтезирует ~10 фраз в минуту (RTF ≈ 1,5): он упирается в задержку шагов, а не в вычисления, и `utilization.gpu` = 99% этого не показывает — смотрите фразы в минуту и мощность. Для полного прогона запускайте несколько процессов с общей очередью `--claim`: каждый берёт следующую свободную модель, их можно добавлять и останавливать на ходу. По 5 на карту — ~27 фраз в минуту на карту и ~24 ГБ. Замеры и расчёт на большие датасеты — в design.md, «Скорость синтеза оценки и масштабирование».
+
+```bash
+for i in 1 2 3 4 5; do
+  (CUDA_VISIBLE_DEVICES=1 HF_HOME=$PWD/data/hf setsid nohup .venv/bin/qwen-lora scripts/voice_train/synth_eval.py <прогон> --zero-shot --claim > data/voice/<прогон>/synth_eval-$i.out 2>&1 < /dev/null &)
+done
+```
+
+Повторный запуск с `--claim` пропустит все модели: сначала удалите `data/voice/<прогон>/eval/.*.claim`.
+
+Ожидая процесс по `pgrep -f <строка>`, не повторяйте эту строку в команде, которая ждёт: `pgrep` найдёт саму эту команду и не дождётся никогда. Надёжнее запоминать PID.
+
 У прогонов, подготовленных до фиксации отложенной выборки, нужен `--holdout <манифест>`. У `pilot-2026-10-18` это `data/voice/pilot-2026-10-18/dataset-manifest/holdout.jsonl`: копия манифеста, на котором он обучен.
 
 **Метрики на Mac.** После rsync `eval/` и `holdout/` в `data/voice/<прогон>/`:

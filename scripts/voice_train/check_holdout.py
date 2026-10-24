@@ -4,7 +4,7 @@
         scripts/voice_train/check_holdout.py pilot-2026-10-18 [--epochs 0 5 9]
 
 Готовит коды отложенной выборки датасета тем же prepare_data.py из vendor, что и обучение
-(holdout_audio/, holdout.jsonl, holdout.codes.jsonl в data/voice/<прогон>/; повторно не пересчитывает),
+(holdout_audio/, holdout.codes.jsonl в data/voice/<прогон>/; повторно не пересчитывает),
 и в режиме no_grad считает CE talker и sub-talker на Base и на каждом checkpoint-epoch-N:
 на holdout и на столько же первых клипах train.codes.jsonl. Цель — как в патче выравнивания,
 loss — talker + 0,3 · sub-talker, как в sft_12hz.py. Минимум на holdout — эпоха, после которой
@@ -32,17 +32,24 @@ SPEAKER_ID = 3000  # строка говорящего в codec_embedding, её 
 SUB_WEIGHT = 0.3
 
 
-def holdout_codes(run_dir: Path, ref_audio: str) -> Path:
+def holdout_codes(run_dir: Path, ref_audio: str, pad_ms: dict) -> Path:
     out = run_dir / "holdout.codes.jsonl"
     if out.is_file():
         return out
     audio_dir = run_dir / "holdout_audio"
+    # Своя отложенная выборка прогона (prepare.py), у старых прогонов — манифест датасета.
+    frozen = run_dir / "holdout.jsonl"
+    if (run_dir / "holdout").is_dir():
+        holdout, root = read_jsonl(frozen), run_dir
+    else:
+        holdout, root = read_jsonl(DATASET_DIR / "manifest" / "holdout.jsonl"), DATASET_DIR
     rows = []
-    for r in read_jsonl(DATASET_DIR / "manifest" / "holdout.jsonl"):
+    for r in holdout:
         dst = audio_dir / f"{r['seg_id']}.wav"
-        resample(DATASET_DIR / r["audio"], dst)
+        # Отступы — как у обучающих сегментов, иначе CE holdout и train несравнимы.
+        resample(root / r["audio"], dst, pad_ms["start"], pad_ms["end"])
         rows.append({"audio": str(dst), "text": r["text"], "ref_audio": ref_audio})
-    raw = run_dir / "holdout.jsonl"
+    raw = run_dir / "holdout.codes-input.jsonl"
     write_jsonl(raw, rows)
     subprocess.run(
         [sys.executable, "prepare_data.py", "--device", "cuda:0", "--tokenizer_model_path", TOKENIZER,
@@ -76,7 +83,10 @@ def main() -> None:
     run_dir = ROOT / "data" / "voice" / args.run
     train_rows = read_jsonl(run_dir / "train.codes.jsonl")
     ref_audio = train_rows[0]["ref_audio"]
-    hold_rows = read_jsonl(holdout_codes(run_dir, ref_audio))
+    run = json.loads((run_dir / "run.json").read_text(encoding="utf-8"))
+    # Прогоны до отступов: тишины по краям нет.
+    pad_ms = run.get("pad_ms", {"start": 0, "end": 0})
+    hold_rows = read_jsonl(holdout_codes(run_dir, ref_audio, pad_ms))
     train_rows = train_rows[: len(hold_rows)]
 
     sys.path.insert(0, str(VENDOR))
