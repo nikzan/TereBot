@@ -59,6 +59,8 @@ uv run --group train python scripts/voice_train/prepare.py --run pilot-2026-10-1
 
 Референс по умолчанию — самый длинный сегмент обучающей выборки. Другой — `--ref <seg_id>`; сегмент отложенной выборки не принимается.
 
+К каждому сегменту и референсу добавляется тишина: 150 мс в начале и 300 мс в конце (`--pad-start-ms`, `--pad-end-ms`). Шлюз режет речь по микрофону почти впритык, и без отступов Голос обрезает начало и конец фраз. Отступы пишутся в `run.json` (`pad_ms`). Отложенная выборка копируется в каталог прогона как есть (`holdout/`, `holdout.jsonl`): прогон оценивается на ней, даже если датасет потом вырастет.
+
 **2. Обучение.** `prepare_data.py` (коды токенизатора 12 Гц) и `sft_12hz.py`: bf16, AdamW, накопление градиента 4, чекпоинт на каждую эпоху. По умолчанию 10 эпох, батч 2, `lr=2e-5`.
 
 ```bash
@@ -80,12 +82,15 @@ CUDA_VISIBLE_DEVICES=1 scripts/voice_train/train.sh smoke --limit 10 --epochs 1
 
 ```
 data/voice/<прогон>/
-  audio/<seg_id>.wav        сегменты train, 24 кГц, моно, 16 бит
+  audio/<seg_id>.wav        сегменты train, 24 кГц, моно, 16 бит, тишина 150 мс / 300 мс по краям
+  holdout/<seg_id>.wav      отложенная выборка прогона, исходные WAV датасета
+  holdout.jsonl             её тексты, пути относительно каталога прогона
   train.jsonl               {audio, text, ref_audio}, один референс на все примеры
   train.codes.jsonl         то же с audio_codes
   run.json                  метка pilot/final, минуты, референс, гиперпараметры, коммит QwenLM, версии, GPU
   train.log                 лог обучения (loss каждые 10 шагов)
   checkpoint-epoch-N/       полная модель custom_voice, говорящий prototype (~4–5 ГБ)
+  eval/<чекпоинт>/          синтез набора оценки и results.json (synth_eval.py, метрики voice_eval)
 ```
 
 Чекпоинт вызывается через `generate_custom_voice(text, speaker="prototype")` без референса. Невыбранные чекпоинты удаляйте после оценки: 10 эпох — это ~45 ГБ.
@@ -115,6 +120,25 @@ CUDA_VISIBLE_DEVICES=1 HF_HOME=$PWD/data/hf .venv/bin/qwen-lora scripts/voice_tr
 ```
 
 Рост CE на holdout при падении на train — признак переобучения. Чекпоинт по этой кривой не выбирают: для этого есть похожесть и CER.
+
+## Оценка чекпоинтов
+
+**Синтез на кластере.** Тексты отложенной выборки прогона и `config/eval/phrases_ru.txt` для выбранных чекпоинтов и для zero-shot Base с тем же референсом:
+
+```bash
+CUDA_VISIBLE_DEVICES=1 HF_HOME=$PWD/data/hf .venv/bin/qwen-lora scripts/voice_train/synth_eval.py <прогон> --epochs 3 5 --zero-shot
+```
+
+У прогонов, подготовленных до фиксации отложенной выборки, нужен `--holdout <манифест>`. У `pilot-2026-10-18` это `data/voice/pilot-2026-10-18/dataset-manifest/holdout.jsonl`: копия манифеста, на котором он обучен.
+
+**Метрики на Mac.** После rsync `eval/` и `holdout/` в `data/voice/<прогон>/`:
+
+```bash
+uv run --group eval python -m terebot.voice_eval data/voice/<прогон>/eval/* --refs data/voice/<прогон>/holdout
+uv run python scripts/voice_train/curve.py <прогон>
+```
+
+`curve.py` печатает таблицу в Markdown для отчёта и эпоху по правилу из design.md: медианный CER не выше zero-shot, средний — не больше чем на 0,02 выше, затем самая ранняя эпоха плато похожести (< 0,01 за эпоху).
 
 ## Патч к QwenLM
 

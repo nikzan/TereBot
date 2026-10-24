@@ -1,7 +1,8 @@
+import numpy as np
 import pytest
 
 from terebot.dataset.jsonl import write_jsonl
-from terebot.voice_train.data import pick_reference, training_rows
+from terebot.voice_train.data import pad_silence, pick_reference, training_rows
 
 
 def seg(sid, duration=5.0):
@@ -69,3 +70,12 @@ def test_repeated_preparation_is_identical(manifest, tmp_path):
         return path.read_bytes()
 
     assert prepare(train) == prepare(list(reversed(train)))
+
+
+def test_pad_silence_adds_exact_silence_around_speech():
+    speech = np.linspace(-0.5, 0.5, 4 * 24000, dtype=np.float32)
+    padded = pad_silence(speech, 24000, 150, 300)
+    assert len(padded) == int(4.45 * 24000)
+    assert padded.dtype == speech.dtype
+    assert not padded[:3600].any() and not padded[-7200:].any()
+    assert np.array_equal(padded[3600:-7200], speech)

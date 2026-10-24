@@ -8,9 +8,14 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Метрики качества для каталогов прогона бенчмарка")
     parser.add_argument("runs", nargs="+", type=Path, help="каталоги data/bench/<ts>-<id>")
     parser.add_argument("--reference", type=Path, default=REFERENCE_DIR)
+    parser.add_argument(
+        "--refs",
+        type=Path,
+        help="эталоны похожести: каталог WAV или holdout.jsonl датасета (вместо sim_*.wav)",
+    )
     args = parser.parse_args()
     for run in args.runs:
-        q = evaluate_run(run, args.reference)["quality"]
+        q = evaluate_run(run, args.reference, args.refs)["quality"]
         base = q["baseline_similarity"]
         base_s = f"{base:.3f}" if base is not None else "—"
         print(
