@@ -157,8 +157,10 @@ uv run python scripts/voice_train/curve.py <прогон>
 Судьи, которые знают голос Прототипа, но не слышали эту версию Голоса, слушают пары «живая запись / синтез того же текста» и отмечают, где синтез. Тест пройден, если в сумме синтез угадан не чаще 65% ответов. Всё на Mac:
 
 ```bash
-uv run --group tts-mlx --group data python scripts/voice_train/blind_test.py prepare --name final-e8 --run final-2026-10-24 --model data/models/final-2026-10-24-e8-mlx-8bit
+uv run --exact --group tts-mlx --with pyloudnorm==0.2.0 python scripts/voice_train/blind_test.py prepare --name final-e8 --run final-2026-10-24 --model data/models/final-2026-10-24-e8-mlx-8bit
 ```
+
+Группа `data` здесь не подходит: её silero-vad тянет torch 2.14.1 без sympy на macOS, и рядом с `tts-mlx` transformers падает на импорте токенизатора. Тесту из неё нужна только pyloudnorm, а `--exact` убирает torch, оставшийся от других групп.
 
 - 20 сегментов 4–12 с из отложенной выборки прогона (`holdout/`), не бывших в прошлых тестах (журнал `data/voice/blind_tests/used.json`).
 - Синтез — как в Клоне (`MlxVoice`, стриминг 0,5 с, говорящий `prototype`), затем Opus 96 кбит/с туда и обратно: живые записи прошли тот же кодек Discord.
@@ -169,7 +171,7 @@ uv run --group tts-mlx --group data python scripts/voice_train/blind_test.py pre
 **Тест по стриму экрана** (один компьютер, судьи слушают в Discord) — ответы вводит ведущий:
 
 ```bash
-uv run --group data python scripts/voice_train/blind_test.py listen --name final-e8 --judge аня
+uv run --exact --group tts-mlx --with pyloudnorm==0.2.0 python scripts/voice_train/blind_test.py listen --name final-e8 --judge аня
 ```
 
 Пара проигрывается сама: A, пауза, B. Ведущий нажимает `A` или `B` (в русской раскладке — те же клавиши), ответ сразу пишется в `data/voice/blind_tests/final-e8/answers-аня.csv`, начинается следующая пара. `1` / `2` — переслушать A / B, пробел — обе, `←` — назад (ответ можно исправить), `q` — выход; повторный запуск продолжит с первой пары без ответа. Нажатия во время звука не засчитываются — отвечать после. Ключ не читается, на экране только номер пары и ответ судьи. Звук в стриме идёт через ещё один кодек Discord — одинаково для A и B. Проверьте до теста, что Discord на macOS передаёт звук стрима.
@@ -177,7 +179,7 @@ uv run --group data python scripts/voice_train/blind_test.py listen --name final
 Или по файлам: каждый судья заполняет копию `answers.csv` (колонка `synthetic`: `A` или `B`) и присылает её как `answers-<имя>.csv`. Подсчёт и запись итога в `docs/benchmarks/voice-finetune.md`:
 
 ```bash
-uv run --group data python scripts/voice_train/blind_test.py score --name final-e8 data/voice/blind_tests/final-e8/answers-*.csv
+uv run --exact --group tts-mlx --with pyloudnorm==0.2.0 python scripts/voice_train/blind_test.py score --name final-e8 data/voice/blind_tests/final-e8/answers-*.csv
 ```
 
 ## Патч к QwenLM

@@ -1,9 +1,12 @@
 """Слепой тест Голоса: пары «живая запись / синтез» для судей и подсчёт их ответов.
 
-    uv run --group tts-mlx --group data python scripts/voice_train/blind_test.py prepare \\
-        --name final-e8 --run final-2026-10-24 --model data/models/final-2026-10-24-e8-mlx-8bit
-    uv run --group data python scripts/voice_train/blind_test.py score --name final-e8 \\
-        data/voice/blind_tests/final-e8/answers-аня.csv answers-боря.csv …
+Запуск — `uv run --exact --group tts-mlx --with pyloudnorm==0.2.0 python <этот файл> …`
+(группа data не подходит, см. README):
+
+    … prepare --name final-e8 --run final-2026-10-24 \\
+        --model data/models/final-2026-10-24-e8-mlx-8bit
+    … listen --name final-e8 --judge аня
+    … score --name final-e8 data/voice/blind_tests/final-e8/answers-*.csv
 
 prepare берёт 20 сегментов 4–12 с из отложенной выборки прогона, не бывших в прошлых тестах,
 синтезирует их тексты на Mac через MLX, как в Клоне, пропускает синтез через Opus 96 кбит/с
@@ -16,8 +19,6 @@ listen — проведение теста с одним компьютером 
 очереди проигрываются через afplay, ведущий нажимает A или B за судью, ответ сразу пишется
 в data/voice/blind_tests/<имя>/answers-<судья>.csv. Ключ не читается и на экран ничего
 не выдаёт; прерванный тест продолжается с первой пары без ответа.
-
-    uv run --group data python scripts/voice_train/blind_test.py listen --name final-e8 --judge аня
 
 score: ответ судьи — копия answers.csv или файл listen, в колонке synthetic — A или B; имя
 судьи — из имени файла после «answers-». Итог дописывается в docs/benchmarks/voice-finetune.md.
