@@ -152,6 +152,26 @@ uv run python scripts/voice_train/curve.py <прогон>
 
 `curve.py` печатает таблицу в Markdown для отчёта и эпоху по правилу из design.md: медианный CER не выше zero-shot, средний — не больше чем на 0,02 выше, затем самая ранняя эпоха плато похожести (< 0,01 за эпоху).
 
+## Слепой тест
+
+Судьи, которые знают голос Прототипа, но не слышали эту версию Голоса, слушают пары «живая запись / синтез того же текста» и отмечают, где синтез. Тест пройден, если в сумме синтез угадан не чаще 65% ответов. Всё на Mac:
+
+```bash
+uv run --group tts-mlx --group data python scripts/voice_train/blind_test.py prepare --name final-e8 --run final-2026-10-24 --model data/models/final-2026-10-24-e8-mlx-8bit
+```
+
+- 20 сегментов 4–12 с из отложенной выборки прогона (`holdout/`), не бывших в прошлых тестах (журнал `data/voice/blind_tests/used.json`).
+- Синтез — как в Клоне (`MlxVoice`, стриминг 0,5 с, говорящий `prototype`), затем Opus 96 кбит/с туда и обратно: живые записи прошли тот же кодек Discord.
+- Оба файла пары обрабатываются одинаково: ровно 50 мс тишины по краям (лишняя срезается, недостающая добавляется — иначе выдали бы паузы), −23 LUFS, WAV 48 кГц 16 бит без метаданных.
+- `data/voice/blind_tests/<имя>/pairs/` — `NN-A.wav`, `NN-B.wav` и `answers.csv`: эту папку отдают судьям. Ключ `key.json` лежит уровнем выше, судьям его не показывать.
+- Другая эпоха — тот же `--name` с другим `--model`: тест подготовится заново, а его сегменты в журнале заменятся. Новое имя — новые сегменты.
+
+Каждый судья заполняет копию `answers.csv` (колонка `synthetic`: `A` или `B`) и присылает её как `answers-<имя>.csv`. Подсчёт и запись итога в `docs/benchmarks/voice-finetune.md`:
+
+```bash
+uv run --group data python scripts/voice_train/blind_test.py score --name final-e8 data/voice/blind_tests/final-e8/answers-*.csv
+```
+
 ## Патч к QwenLM
 
 На закреплённом коммите `sft_12hz.py` учит модель другой задаче, чем та, которую решает синтез (QwenLM/Qwen3-TTS#371 и #337, PR #278 и #384). Без исправления чекпоинты не выдают EOS и синтезируют до `max_new_tokens`: так было в пробном прогоне 2026-10-17 на всех эпохах. Разбор — в [design.md change `fix-voice-sft-alignment`](../../openspec/changes/archive/2026-10-18-fix-voice-sft-alignment/design.md).
