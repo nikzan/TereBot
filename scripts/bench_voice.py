@@ -61,6 +61,8 @@ CONFIGS = {
     "4": Config("qwen_mlx", "mlx-community/Qwen3-TTS-12Hz-0.6B-Base-bf16", "bf16"),
     "5": Config("qwen_torch", "Qwen/Qwen3-TTS-12Hz-0.6B-Base", "bf16"),
     "6": Config("chatterbox", "ResembleAI/chatterbox", "default"),
+    # Дообученный Голос (change finetune-voice): своя конвертация чекпоинта, путь — --model.
+    "7": Config("qwen_mlx_custom", "", "8bit"),
 }
 
 
@@ -293,6 +295,10 @@ class MemorySampler:
 # --- LLM рядом ----------------------------------------------------------------------------
 
 
+class BadArguments(Exception):
+    pass
+
+
 class LlmNotRunning(Exception):
     pass
 
@@ -427,6 +433,17 @@ class QwenTorchAdapter(_TorchMps):
 QwenMlxAdapter = MlxVoice
 
 
+class QwenMlxCustomAdapter(MlxVoice):
+    """Дообученный Голос: говорящий хранится в модели, референс не нужен."""
+
+    def __init__(self, streaming_interval: float, cache_limit_gb: float | None, speaker: str):
+        super().__init__(streaming_interval, cache_limit_gb)
+        self.speaker = speaker
+
+    def prepare_voice(self, ref_wav: Path, ref_text: str) -> None:
+        self.use_speaker(self.speaker)
+
+
 class ChatterboxAdapter(_TorchMps):
     """Chatterbox Multilingual на PyTorch MPS. Стриминга нет."""
 
@@ -457,6 +474,8 @@ def make_adapter(name: str, args: argparse.Namespace) -> Adapter:
         return QwenTorchAdapter()
     if name == "qwen_mlx":
         return QwenMlxAdapter(args.streaming_interval, args.cache_limit_gb)
+    if name == "qwen_mlx_custom":
+        return QwenMlxCustomAdapter(args.streaming_interval, args.cache_limit_gb, args.speaker)
     if name == "chatterbox":
         return ChatterboxAdapter()
     raise ValueError(f"неизвестный адаптер {name}")
@@ -467,6 +486,11 @@ def make_adapter(name: str, args: argparse.Namespace) -> Adapter:
 
 def run(args: argparse.Namespace) -> Path:
     config = CONFIGS[args.config]
+    custom = config.adapter == "qwen_mlx_custom"
+    if custom and not (args.model and args.speaker):
+        raise BadArguments(f"конфигурации {args.config} нужны --model и --speaker")
+    if args.speaker and not custom:
+        raise BadArguments("--speaker — только для дообученного Голоса (конфигурация 7)")
     if args.model:
         config = Config(config.adapter, args.model, config.precision)
     llm = check_llm(args.llm_url) if args.with_llm else None
@@ -475,8 +499,11 @@ def run(args: argparse.Namespace) -> Path:
     warmup = warmup[: args.warmup]
     if args.limit:
         phrases = phrases[: args.limit]
-    ref_wav = args.reference / "ref.wav"
-    ref_text = (args.reference / "ref.txt").read_text(encoding="utf-8").strip()
+    if custom:
+        ref_wav, ref_text = None, None
+    else:
+        ref_wav = args.reference / "ref.wav"
+        ref_text = (args.reference / "ref.txt").read_text(encoding="utf-8").strip()
 
     suffix = "-llm" if args.with_llm else ""
     label = f"-{args.label}" if args.label else ""
@@ -498,7 +525,11 @@ def run(args: argparse.Namespace) -> Path:
         adapter.load(config.model, config.precision)
         load_s = time.perf_counter() - t
         t = time.perf_counter()
-        adapter.prepare_voice(ref_wav, ref_text)
+        try:
+            adapter.prepare_voice(ref_wav, ref_text)
+        except ValueError as e:
+            # mlx-audio: «Speaker 'x' not supported. Available: [...]».
+            raise BadArguments(f"{config.model}: {e}") from None
         prepare_s = time.perf_counter() - t
         # Пик к этому моменту — от загрузки и подготовки голоса, без синтеза фраз.
         memory_after_prepare = mem.report()
@@ -511,11 +542,17 @@ def run(args: argparse.Namespace) -> Path:
             "warmup_phrases": len(warmup),
             "streaming_interval_s": args.streaming_interval if adapter.streaming else None,
             "cache_limit_gb": args.cache_limit_gb,
-            "reference": {
-                "wav": display_path(ref_wav),
-                "text": ref_text,
-                "duration_s": sf.info(ref_wav).duration,
-            },
+            **(
+                {"speaker": args.speaker}
+                if custom
+                else {
+                    "reference": {
+                        "wav": display_path(ref_wav),
+                        "text": ref_text,
+                        "duration_s": sf.info(ref_wav).duration,
+                    }
+                }
+            ),
         },
         "date": dt.datetime.now().astimezone().isoformat(timespec="seconds"),
         "environment": environment(adapter.packages),
@@ -538,6 +575,7 @@ def main() -> None:
     parser.add_argument("--config", required=True, choices=sorted(CONFIGS))
     parser.add_argument("--model", help="другой путь или репозиторий модели (своя конвертация)")
     parser.add_argument("--label", help="добавка к имени каталога прогона")
+    parser.add_argument("--speaker", help="говорящий дообученного Голоса (конфигурация 7)")
     parser.add_argument("--with-llm", action="store_true", help="рядом запущен llama-server")
     parser.add_argument("--llm-url", default="http://127.0.0.1:8080")
     parser.add_argument("--phrases", type=Path, default=PHRASES)
@@ -560,7 +598,7 @@ def main() -> None:
     args = parser.parse_args()
     try:
         out = run(args)
-    except LlmNotRunning as e:
+    except (LlmNotRunning, BadArguments) as e:
         sys.exit(f"Ошибка: {e}")
     s = json.loads((out / "results.json").read_text(encoding="utf-8"))
     print(
